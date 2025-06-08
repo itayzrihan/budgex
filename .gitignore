@@ -1,0 +1,31 @@
+# WordPress
+*.log
+wp-config.php
+.htaccess
+
+# Directories
+.vscode/
+.idea/
+node_modules/
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Mac
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Temporary files
+*.swp
+*.swo
+*~
+
+# WordPress specific ignores
+wp-content/uploads/
+wp-content/upgrade/
+wp-content/backup-db/
+wp-content/cache/
+wp-content/backups/

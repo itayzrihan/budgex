@@ -1,0 +1,1 @@
+The contents of the file /budgex/budgex/languages/budgex-he_IL.mo are binary and cannot be represented in a text format. This file is generated from the corresponding .po file using a tool like Poedit or similar. Therefore, this file is intentionally left blank.

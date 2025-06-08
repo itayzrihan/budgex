@@ -1,0 +1,417 @@
+msgid "Budgex"
+msgstr "באג'קס"
+
+msgid "Budget Management"
+msgstr "ניהול תקציב"
+
+msgid "Create a new budget page"
+msgstr "צור דף תקציב חדש"
+
+msgid "Monthly Budget (ILS/USD)"
+msgstr "תקציב חודשי (ש"ח/דולר)"
+
+msgid "Project Start Date"
+msgstr "תאריך התחלה של הפרויקט"
+
+msgid "Total Budget"
+msgstr "סך התקציב"
+
+msgid "Add Outcome"
+msgstr "הוסף הוצאה"
+
+msgid "Description"
+msgstr "תיאור"
+
+msgid "Name"
+msgstr "שם"
+
+msgid "Invite Users"
+msgstr "הזמן משתמשים"
+
+msgid "Viewer"
+msgstr "צופה"
+
+msgid "Admin"
+msgstr "מנהל"
+
+msgid "Your Budgets"
+msgstr "התקציבים שלך"
+
+msgid "No budgets found."
+msgstr "לא נמצאו תקציבים."
+
+msgid "Budget Details"
+msgstr "פרטי התקציב"
+
+msgid "Edit Budget"
+msgstr "ערוך תקציב"
+
+msgid "Delete Budget"
+msgstr "מחק תקציב"
+
+msgid "Budget Page"
+msgstr "דף תקציב"
+
+msgid "You do not have permission to view this budget."
+msgstr "אין לך הרשאה לצפות בתקציב זה."
+
+msgid "Budget successfully created."
+msgstr "התקציב נוצר בהצלחה."
+
+msgid "Budget updated successfully."
+msgstr "התקציב עודכן בהצלחה."
+
+msgid "Budget deleted successfully."
+msgstr "התקציב נמחק בהצלחה."
+
+msgid "Please enter a valid amount."
+msgstr "אנא הזן סכום תקף."
+
+msgid "Please enter a valid date."
+msgstr "אנא הזן תאריך תקף."
+
+msgid "You have been invited to view/manage a budget."
+msgstr "הוזמנת לצפות/לנהל תקציב."
+
+# Enhanced Dashboard Translations
+msgid "Dashboard"
+msgstr "דשבורד"
+
+msgid "Welcome back"
+msgstr "ברוך שובך"
+
+msgid "Here's your budget overview"
+msgstr "הנה סקירת התקציבים שלך"
+
+msgid "Total Budgets"
+msgstr "סך התקציבים"
+
+msgid "Total Spent"
+msgstr "סך ההוצאות"
+
+msgid "Total Remaining"
+msgstr "סך הנותר"
+
+msgid "This Month Spent"
+msgstr "הוצאות החודש"
+
+msgid "Quick Actions"
+msgstr "פעולות מהירות"
+
+msgid "Create New Budget"
+msgstr "צור תקציב חדש"
+
+msgid "View Analytics"
+msgstr "צפה בניתוחים"
+
+msgid "My Budgets"
+msgstr "התקציבים שלי"
+
+msgid "Monthly Budget"
+msgstr "תקציב חודשי"
+
+msgid "Expenses"
+msgstr "הוצאות"
+
+msgid "View Budget"
+msgstr "צפה בתקציב"
+
+msgid "remaining"
+msgstr "נותר"
+
+# Enhanced Budget Page Translations
+msgid "Budget Summary"
+msgstr "סיכום התקציב"
+
+msgid "Monthly Breakdown"
+msgstr "פילוח חודשי"
+
+msgid "Add New Outcome"
+msgstr "הוסף תוצאה חדשה"
+
+msgid "Amount"
+msgstr "סכום"
+
+msgid "Category"
+msgstr "קטגוריה"
+
+msgid "Date"
+msgstr "תאריך"
+
+msgid "Save Outcome"
+msgstr "שמור תוצאה"
+
+msgid "Edit"
+msgstr "עריכה"
+
+msgid "Delete"
+msgstr "מחק"
+
+msgid "Cancel"
+msgstr "בטל"
+
+msgid "Update"
+msgstr "עדכן"
+
+msgid "Recent Outcomes"
+msgstr "תוצאות אחרונות"
+
+msgid "No outcomes found"
+msgstr "לא נמצאו תוצאות"
+
+msgid "Month"
+msgstr "חודש"
+
+msgid "Budget"
+msgstr "תקציב"
+
+msgid "Spent"
+msgstr "הוצא"
+
+msgid "Remaining"
+msgstr "נותר"
+
+# Enhanced Invite System Translations
+msgid "Invite Users"
+msgstr "הזמן משתמשים"
+
+msgid "Invite users to budget: %s"
+msgstr "הזמן משתמשים לתקציב: %s"
+
+msgid "Invite New User"
+msgstr "הזמן משתמש חדש"
+
+msgid "Email Address:"
+msgstr "כתובת אימייל:"
+
+msgid "Enter email address"
+msgstr "הכנס כתובת אימייל"
+
+msgid "Role:"
+msgstr "תפקיד:"
+
+msgid "Select role"
+msgstr "בחר תפקיד"
+
+msgid "Viewer: Can view budget and outcomes. Admin: Can edit and manage budget."
+msgstr "צופה: יכול לראות את התקציב והתוצאות. מנהל: יכול לערוך ולנהל את התקציב."
+
+msgid "Personal Message (Optional):"
+msgstr "הודעה אישית (אופציונלי):"
+
+msgid "Add personal message to invitation..."
+msgstr "הוסף הודעה אישית להזמנה..."
+
+msgid "Send Invitation"
+msgstr "שלח הזמנה"
+
+msgid "Back to Budget"
+msgstr "חזור לתקציב"
+
+msgid "Users and Permissions"
+msgstr "משתמשים והרשאות"
+
+msgid "Active Users"
+msgstr "משתמשים פעילים"
+
+msgid "User"
+msgstr "משתמש"
+
+msgid "Email"
+msgstr "אימייל"
+
+msgid "Role"
+msgstr "תפקיד"
+
+msgid "Join Date"
+msgstr "תאריך הצטרפות"
+
+msgid "Actions"
+msgstr "פעולות"
+
+msgid "User not available"
+msgstr "משתמש לא זמין"
+
+msgid "Not available"
+msgstr "לא זמין"
+
+msgid "Remove"
+msgstr "הסר"
+
+msgid "Owner"
+msgstr "בעלים"
+
+msgid "Pending Invitations"
+msgstr "הזמנות ממתינות"
+
+msgid "Send Date"
+msgstr "תאריך שליחה"
+
+msgid "Resend"
+msgstr "שלח שוב"
+
+msgid "Cancel"
+msgstr "בטל"
+
+msgid "Budget not found"
+msgstr "תקציב לא נמצא"
+
+msgid "No budget found for inviting users. Please select an existing budget or create a new one."
+msgstr "לא נמצא תקציב להזמנת משתמשים. אנא בחר תקציב קיים או צור תקציב חדש."
+
+msgid "Back to Dashboard"
+msgstr "חזור לדשבורד"
+
+# Notification Messages
+msgid "Outcome added successfully"
+msgstr "התוצאה נוספה בהצלחה"
+
+msgid "Error adding outcome"
+msgstr "שגיאה בהוספת התוצאה"
+
+msgid "Outcome updated successfully"
+msgstr "התוצאה עודכנה בהצלחה"
+
+msgid "Error updating outcome"
+msgstr "שגיאה בעדכון התוצאה"
+
+msgid "Outcome deleted successfully"
+msgstr "התוצאה נמחקה בהצלחה"
+
+msgid "Error deleting outcome"
+msgstr "שגיאה במחיקת התוצאה"
+
+msgid "Invitation sent successfully!"
+msgstr "ההזמנה נשלחה בהצלחה!"
+
+msgid "Error sending invitation"
+msgstr "שגיאה בשליחת ההזמנה"
+
+msgid "User removed successfully"
+msgstr "המשתמש הוסר בהצלחה"
+
+msgid "Error removing user"
+msgstr "שגיאה בהסרת המשתמש"
+
+msgid "Invitation cancelled successfully"
+msgstr "ההזמנה בוטלה בהצלחה"
+
+msgid "Error cancelling invitation"
+msgstr "שגיאה בביטול ההזמנה"
+
+msgid "Invitation resent successfully"
+msgstr "ההזמנה נשלחה שוב בהצלחה"
+
+msgid "Error resending invitation"
+msgstr "שגיאה בשליחת ההזמנה"
+
+msgid "Invitation accepted successfully"
+msgstr "ההזמנה התקבלה בהצלחה"
+
+msgid "Error accepting invitation"
+msgstr "שגיאה בקבלת ההזמנה"
+
+msgid "Server connection error"
+msgstr "שגיאה בחיבור לשרת"
+
+msgid "Please fill all required fields"
+msgstr "אנא מלא את כל השדות הנדרשים"
+
+msgid "Are you sure you want to delete this outcome?"
+msgstr "האם אתה בטוח שברצונך למחוק תוצאה זו?"
+
+msgid "Are you sure you want to remove this user from the budget?"
+msgstr "האם אתה בטוח שברצונך להסיר את המשתמש מהתקציב?"
+
+msgid "Are you sure you want to cancel this invitation?"
+msgstr "האם אתה בטוח שברצונך לבטל את ההזמנה?"
+
+# Error Pages
+msgid "Access Denied"
+msgstr "גישה נדחתה"
+
+msgid "You don't have permission to view this budget"
+msgstr "אין לך הרשאה לצפות בתקציב זה"
+
+msgid "Please contact the budget owner to request access, or return to your dashboard."
+msgstr "אנא פנה לבעלים של התקציב כדי לבקש גישה, או חזור לדשבורד שלך."
+
+msgid "Request Access"
+msgstr "בקש גישה"
+
+# Categories
+msgid "Food & Dining"
+msgstr "מזון ואוכל"
+
+msgid "Transportation"
+msgstr "תחבורה"
+
+msgid "Shopping"
+msgstr "קניות"
+
+msgid "Entertainment"
+msgstr "בידור"
+
+msgid "Bills & Utilities"
+msgstr "חשבונות וארנונה"
+
+msgid "Healthcare"
+msgstr "בריאות"
+
+msgid "Education"
+msgstr "חינוך"
+
+msgid "Travel"
+msgstr "נסיעות"
+
+msgid "Other"
+msgstr "אחר"
+
+msgid "No category"
+msgstr "ללא קטגוריה"
+
+# Time Periods
+msgid "January"
+msgstr "ינואר"
+
+msgid "February"
+msgstr "פברואר"
+
+msgid "March"
+msgstr "מרץ"
+
+msgid "April"
+msgstr "אפריל"
+
+msgid "May"
+msgstr "מאי"
+
+msgid "June"
+msgstr "יוני"
+
+msgid "July"
+msgstr "יולי"
+
+msgid "August"
+msgstr "אוגוסט"
+
+msgid "September"
+msgstr "ספטמבר"
+
+msgid "October"
+msgstr "אוקטובר"
+
+msgid "November"
+msgstr "נובמבר"
+
+msgid "December"
+msgstr "דצמבר"
+
+msgid "This Month"
+msgstr "החודש"
+
+msgid "Last Month"
+msgstr "החודש שעבר"
+
+msgid "This Year"
+msgstr "השנה"
