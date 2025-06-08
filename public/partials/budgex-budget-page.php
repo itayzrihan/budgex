@@ -37,25 +37,31 @@ if (!isset($budget) || !isset($calculation) || !isset($user_role)) {
                 </button>
             <?php endif; ?>
         </div>
-    </div>
-
-    <!-- Budget Summary Cards -->
-    <div class="budget-summary-cards">
-        <div class="summary-card total-budget">
-            <div class="card-icon">
-                <span class="dashicons dashicons-chart-pie"></span>
-            </div>
-            <div class="card-content">
-                <h3><?php _e('סך התקציב הזמין', 'budgex'); ?></h3>
-                <div class="amount"><?php echo $calculator->format_currency($calculation['total_available'], $budget->currency); ?></div>
-                <div class="breakdown">
-                    <small><?php printf(__('מחודשי: %s | נוסף: %s', 'budgex'), 
-                        $calculator->format_currency($calculation['budget_details']['monthly_budget'], $budget->currency),
-                        $calculator->format_currency($calculation['budget_details']['additional_budget'], $budget->currency)
-                    ); ?></small>
+    </div>    <!-- Enhanced Budget Summary Cards -->
+    <div class="enhanced-budget-summary">
+        <div class="summary-cards-grid">
+            <div class="summary-card total-budget">
+                <div class="card-icon">
+                    <span class="dashicons dashicons-chart-pie"></span>
+                </div>
+                <div class="card-content">
+                    <h3><?php _e('סך התקציב הזמין', 'budgex'); ?></h3>
+                    <div class="amount"><?php 
+                        $total_available = isset($calculation['total_available']) ? $calculation['total_available'] : 0;
+                        echo $calculator->format_currency($total_available, $budget->currency); 
+                    ?></div>
+                    <div class="breakdown">
+                        <small><?php 
+                            $monthly_budget = isset($calculation['budget_details']['monthly_budget']) ? $calculation['budget_details']['monthly_budget'] : $budget->monthly_budget;
+                            $additional_budget = isset($calculation['budget_details']['additional_budget']) ? $calculation['budget_details']['additional_budget'] : 0;
+                            printf(__('חודשי: %s | נוסף: %s', 'budgex'), 
+                                $calculator->format_currency($monthly_budget, $budget->currency),
+                                $calculator->format_currency($additional_budget, $budget->currency)
+                            ); 
+                        ?></small>
+                    </div>
                 </div>
             </div>
-        </div>
 
         <div class="summary-card spent-budget">
             <div class="card-icon">

@@ -118,9 +118,8 @@ get_header(); ?>
                class="<?php echo $current_page === 'dashboard' ? 'current' : ''; ?>">
                 🏠 דשבורד ראשי
             </a>
-            
-            <?php if ($budget_id): ?>
-                <a href="<?php echo home_url('/budgex/budget/' . $budget_id . '/'); ?>" class="current">
+              <?php if ($budget_id): ?>
+                <a href="<?php echo home_url('/budgexpage/' . $budget_id . '/'); ?>" class="current">
                     📊 תקציב #<?php echo $budget_id; ?>
                 </a>
             <?php endif; ?>
@@ -148,13 +147,12 @@ get_header(); ?>
 jQuery(document).ready(function($) {
     // Initialize any additional frontend functionality
     console.log('Budgex Frontend App Loaded');
-    
-    // Handle budget navigation
+      // Handle budget navigation
     $('.budget-card').on('click', function(e) {
         e.preventDefault();
         const budgetId = $(this).data('budget-id');
         if (budgetId) {
-            window.location.href = '/budgex/budget/' + budgetId + '/';
+            window.location.href = '/budgexpage/' + budgetId + '/';
         }
     });
     

@@ -318,7 +318,19 @@ class Budgex_Database {
         );
     }
 
-    public function delete_outcome($outcome_id) {
+    public function delete_outcome($outcome_id, $budget_id = null) {
+        if ($budget_id) {
+            // Verify outcome belongs to budget
+            $outcome = $this->wpdb->get_row($this->wpdb->prepare(
+                "SELECT * FROM {$this->outcomes_table} WHERE id = %d AND budget_id = %d",
+                $outcome_id, $budget_id
+            ));
+            
+            if (!$outcome) {
+                return false;
+            }
+        }
+        
         return $this->wpdb->delete(
             $this->outcomes_table,
             array('id' => $outcome_id),
@@ -961,6 +973,554 @@ class Budgex_Database {
     }
 
     /**
+     * ENHANCED BUDGET PAGE METHODS
+     */
+
+    /**
+     * Update budget settings
+     */
+    public function update_budget_settings($budget_id, $settings) {
+        $update_data = array();
+        
+        if (isset($settings['budget_name'])) {
+            $update_data['budget_name'] = $settings['budget_name'];
+        }
+        if (isset($settings['currency'])) {
+            $update_data['currency'] = $settings['currency'];
+        }
+        
+        if (!empty($update_data)) {
+            $update_data['updated_at'] = current_time('mysql');
+            return $this->wpdb->update(
+                $this->budgets_table,
+                $update_data,
+                array('id' => $budget_id),
+                array('%s', '%s', '%s'),
+                array('%d')
+            );
+        }
+        
+        return true;
+    }
+
+    /**
+     * Search outcomes by description or name
+     */
+    public function search_outcomes($budget_id, $search_term) {
+        return $this->wpdb->get_results($this->wpdb->prepare(
+            "SELECT * FROM {$this->outcomes_table} 
+             WHERE budget_id = %d 
+             AND (expense_name LIKE %s OR description LIKE %s)
+             ORDER BY expense_date DESC",
+            $budget_id,
+            '%' . $this->wpdb->esc_like($search_term) . '%',
+            '%' . $this->wpdb->esc_like($search_term) . '%'
+        ));
+    }
+
+    /**
+     * Filter outcomes by various criteria
+     */
+    public function filter_outcomes($budget_id, $filters) {
+        $where_conditions = array("budget_id = %d");
+        $params = array($budget_id);
+        
+        if (!empty($filters['category'])) {
+            $where_conditions[] = "category = %s";
+            $params[] = $filters['category'];
+        }
+        
+        if (!empty($filters['date_from'])) {
+            $where_conditions[] = "expense_date >= %s";
+            $params[] = $filters['date_from'];
+        }
+        
+        if (!empty($filters['date_to'])) {
+            $where_conditions[] = "expense_date <= %s";
+            $params[] = $filters['date_to'];
+        }
+        
+        if (!empty($filters['amount_min'])) {
+            $where_conditions[] = "expense_amount >= %f";
+            $params[] = $filters['amount_min'];
+        }
+        
+        if (!empty($filters['amount_max'])) {
+            $where_conditions[] = "expense_amount <= %f";
+            $params[] = $filters['amount_max'];
+        }
+        
+        if (!empty($filters['type'])) {
+            $where_conditions[] = "expense_type = %s";
+            $params[] = $filters['type'];
+        }
+        
+        $where_clause = implode(' AND ', $where_conditions);
+        
+        return $this->wpdb->get_results($this->wpdb->prepare(
+            "SELECT * FROM {$this->outcomes_table} WHERE {$where_clause} ORDER BY expense_date DESC",
+            ...$params
+        ));
+    }
+
+    /**
+     * Get total spent today
+     */
+    public function get_total_spent_today($budget_id) {
+        return $this->wpdb->get_var($this->wpdb->prepare(
+            "SELECT COALESCE(SUM(expense_amount), 0) FROM {$this->outcomes_table} 
+             WHERE budget_id = %d AND DATE(expense_date) = CURDATE()",
+            $budget_id
+        ));
+    }
+
+    /**
+     * Get total spent this week
+     */
+    public function get_total_spent_this_week($budget_id) {
+        return $this->wpdb->get_var($this->wpdb->prepare(
+            "SELECT COALESCE(SUM(expense_amount), 0) FROM {$this->outcomes_table} 
+             WHERE budget_id = %d AND YEARWEEK(expense_date) = YEARWEEK(CURDATE())",
+            $budget_id
+        ));
+    }
+
+    /**
+     * Get total spent this month
+     */
+    public function get_total_spent_this_month($budget_id) {
+        return $this->wpdb->get_var($this->wpdb->prepare(
+            "SELECT COALESCE(SUM(expense_amount), 0) FROM {$this->outcomes_table} 
+             WHERE budget_id = %d AND YEAR(expense_date) = YEAR(CURDATE()) AND MONTH(expense_date) = MONTH(CURDATE())",
+            $budget_id
+        ));
+    }
+
+    /**
+     * Get remaining budget
+     */
+    public function get_remaining_budget($budget_id) {
+        $budget = $this->get_budget($budget_id);
+        $total_spent = $this->get_total_spent_this_month($budget_id);
+        return max(0, ($budget['monthly_budget'] + $budget['additional_budget']) - $total_spent);
+    }
+
+    /**
+     * Get average daily spending
+     */
+    public function get_average_daily_spending($budget_id) {
+        $total_spent = $this->get_total_spent_this_month($budget_id);
+        $days_in_month = date('j'); // Current day of month
+        return $days_in_month > 0 ? $total_spent / $days_in_month : 0;
+    }
+
+    /**
+     * Get top spending categories
+     */
+    public function get_top_spending_categories($budget_id, $limit = 5) {
+        return $this->wpdb->get_results($this->wpdb->prepare(
+            "SELECT category, SUM(expense_amount) as total,
+                    (SUM(expense_amount) / (SELECT SUM(expense_amount) FROM {$this->outcomes_table} WHERE budget_id = %d) * 100) as percentage
+             FROM {$this->outcomes_table} 
+             WHERE budget_id = %d AND category IS NOT NULL AND category != ''
+             GROUP BY category 
+             ORDER BY total DESC 
+             LIMIT %d",
+            $budget_id, $budget_id, $limit
+        ));
+    }
+
+    /**
+     * Get recent outcomes
+     */
+    public function get_recent_outcomes($budget_id, $limit = 5) {
+        return $this->wpdb->get_results($this->wpdb->prepare(
+            "SELECT * FROM {$this->outcomes_table} 
+             WHERE budget_id = %d 
+             ORDER BY expense_date DESC, id DESC 
+             LIMIT %d",
+            $budget_id, $limit
+        ));
+    }
+
+    /**
+     * Get monthly spending breakdown for charts
+     */
+    public function get_monthly_spending_breakdown($budget_id) {
+        return $this->wpdb->get_results($this->wpdb->prepare(
+            "SELECT DATE_FORMAT(expense_date, '%Y-%m') as month, 
+                    SUM(expense_amount) as total_spent,
+                    COUNT(*) as transaction_count
+             FROM {$this->outcomes_table} 
+             WHERE budget_id = %d 
+             GROUP BY DATE_FORMAT(expense_date, '%Y-%m') 
+             ORDER BY month DESC 
+             LIMIT 12",
+            $budget_id
+        ));
+    }
+
+    /**
+     * Get spending by category for charts
+     */
+    public function get_spending_by_category($budget_id) {
+        return $this->wpdb->get_results($this->wpdb->prepare(
+            "SELECT COALESCE(category, 'אחר') as category, SUM(expense_amount) as total
+             FROM {$this->outcomes_table} 
+             WHERE budget_id = %d 
+             GROUP BY category 
+             ORDER BY total DESC",
+            $budget_id
+        ));
+    }
+
+    /**
+     * Get spending trends for charts
+     */
+    public function get_spending_trends($budget_id) {
+        return $this->wpdb->get_results($this->wpdb->prepare(
+            "SELECT expense_date as date,
+                    SUM(SUM(expense_amount)) OVER (ORDER BY expense_date) as cumulative_spent
+             FROM {$this->outcomes_table} 
+             WHERE budget_id = %d 
+             GROUP BY expense_date 
+             ORDER BY expense_date",
+            $budget_id
+        ));
+    }
+
+    /**
+     * Get total spent for budget
+     */
+    public function get_total_spent($budget_id) {
+        return $this->wpdb->get_var($this->wpdb->prepare(
+            "SELECT COALESCE(SUM(expense_amount), 0) FROM {$this->outcomes_table} WHERE budget_id = %d",
+            $budget_id
+        ));
+    }
+
+    /**
+     * Get outcomes for export with date filtering
+     */
+    public function get_outcomes_for_export($budget_id, $date_filter) {
+        $where_conditions = array("budget_id = %d");
+        $params = array($budget_id);
+        
+        if (!empty($date_filter['start'])) {
+            $where_conditions[] = "expense_date >= %s";
+            $params[] = $date_filter['start'];
+        }
+        
+        if (!empty($date_filter['end'])) {
+            $where_conditions[] = "expense_date <= %s";
+            $params[] = $date_filter['end'];
+        }
+        
+        $where_clause = implode(' AND ', $where_conditions);
+        
+        return $this->wpdb->get_results($this->wpdb->prepare(
+            "SELECT * FROM {$this->outcomes_table} WHERE {$where_clause} ORDER BY expense_date DESC",
+            ...$params
+        ));
+    }
+
+    /**
+     * Get budget summary for date range
+     */
+    public function get_budget_summary($budget_id, $date_filter) {
+        $where_conditions = array("budget_id = %d");
+        $params = array($budget_id);
+        
+        if (!empty($date_filter['start'])) {
+            $where_conditions[] = "expense_date >= %s";
+            $params[] = $date_filter['start'];
+        }
+        
+        if (!empty($date_filter['end'])) {
+            $where_conditions[] = "expense_date <= %s";
+            $params[] = $date_filter['end'];
+        }
+        
+        $where_clause = implode(' AND ', $where_conditions);
+        
+        return $this->wpdb->get_row($this->wpdb->prepare(
+            "SELECT 
+                COUNT(*) as total_transactions,
+                SUM(expense_amount) as total_spent,
+                AVG(expense_amount) as average_transaction,
+                MAX(expense_amount) as highest_transaction,
+                MIN(expense_amount) as lowest_transaction
+             FROM {$this->outcomes_table} WHERE {$where_clause}",
+            ...$params
+        ));
+    }
+
+    /**
+     * Get category breakdown for date range
+     */
+    public function get_category_breakdown($budget_id, $date_filter) {
+        $where_conditions = array("budget_id = %d");
+        $params = array($budget_id);
+        
+        if (!empty($date_filter['start'])) {
+            $where_conditions[] = "expense_date >= %s";
+            $params[] = $date_filter['start'];
+        }
+        
+        if (!empty($date_filter['end'])) {
+            $where_conditions[] = "expense_date <= %s";
+            $params[] = $date_filter['end'];
+        }
+        
+        $where_clause = implode(' AND ', $where_conditions);
+        
+        return $this->wpdb->get_results($this->wpdb->prepare(
+            "SELECT 
+                COALESCE(category, 'אחר') as category,
+                SUM(expense_amount) as total,
+                COUNT(*) as transaction_count
+             FROM {$this->outcomes_table} WHERE {$where_clause}
+             GROUP BY category 
+             ORDER BY total DESC",
+            ...$params
+        ));
+    }
+
+    /**
+     * Get peak spending days
+     */
+    public function get_peak_spending_days($budget_id) {
+        return $this->wpdb->get_results($this->wpdb->prepare(
+            "SELECT DAYOFWEEK(expense_date) as day_of_week, 
+                    SUM(expense_amount) as total_spent,
+                    COUNT(*) as transaction_count
+             FROM {$this->outcomes_table} 
+             WHERE budget_id = %d 
+             GROUP BY DAYOFWEEK(expense_date) 
+             ORDER BY total_spent DESC",
+            $budget_id
+        ));
+    }
+
+    /**
+     * Get spending frequency analysis
+     */
+    public function get_spending_frequency($budget_id) {
+        return $this->wpdb->get_row($this->wpdb->prepare(
+            "SELECT 
+                COUNT(DISTINCT DATE(expense_date)) as active_days,
+                COUNT(*) as total_transactions,
+                AVG(daily_totals.daily_amount) as avg_daily_spending
+             FROM (
+                 SELECT DATE(expense_date) as date, SUM(expense_amount) as daily_amount
+                 FROM {$this->outcomes_table} 
+                 WHERE budget_id = %d 
+                 GROUP BY DATE(expense_date)
+             ) as daily_totals",
+            $budget_id
+        ));
+    }
+
+    /**
+     * Get seasonal spending trends
+     */
+    public function get_seasonal_spending_trends($budget_id) {
+        return $this->wpdb->get_results($this->wpdb->prepare(
+            "SELECT 
+                MONTH(expense_date) as month,
+                SUM(expense_amount) as total_spent,
+                COUNT(*) as transaction_count
+             FROM {$this->outcomes_table} 
+             WHERE budget_id = %d 
+             GROUP BY MONTH(expense_date) 
+             ORDER BY month",
+            $budget_id
+        ));
+    }
+
+    /**
+     * Get projected month end balance
+     */
+    public function get_projected_month_end_balance($budget_id) {
+        $budget = $this->get_budget($budget_id);
+        $current_spent = $this->get_total_spent_this_month($budget_id);
+        $avg_daily = $this->get_average_daily_spending($budget_id);
+        $days_remaining = date('t') - date('j');
+        
+        $projected_additional_spending = $avg_daily * $days_remaining;
+        $projected_total = $current_spent + $projected_additional_spending;
+        $total_budget = $budget['monthly_budget'] + $budget['additional_budget'];
+        
+        return array(
+            'projected_total_spending' => $projected_total,
+            'projected_remaining' => max(0, $total_budget - $projected_total),
+            'projection_accuracy' => $this->calculate_projection_accuracy($budget_id)
+        );
+    }
+
+    /**
+     * Get spending trend analysis
+     */
+    public function get_spending_trend_analysis($budget_id) {
+        $recent_week = $this->get_total_spent_this_week($budget_id);
+        $previous_week = $this->wpdb->get_var($this->wpdb->prepare(
+            "SELECT COALESCE(SUM(expense_amount), 0) FROM {$this->outcomes_table} 
+             WHERE budget_id = %d AND YEARWEEK(expense_date) = YEARWEEK(CURDATE() - INTERVAL 1 WEEK)",
+            $budget_id
+        ));
+        
+        $trend = 'stable';
+        $change_percentage = 0;
+        
+        if ($previous_week > 0) {
+            $change_percentage = (($recent_week - $previous_week) / $previous_week) * 100;
+            if ($change_percentage > 10) {
+                $trend = 'increasing';
+            } elseif ($change_percentage < -10) {
+                $trend = 'decreasing';
+            }
+        }
+        
+        return array(
+            'trend' => $trend,
+            'change_percentage' => $change_percentage,
+            'recent_week_spending' => $recent_week,
+            'previous_week_spending' => $previous_week
+        );
+    }
+
+    /**
+     * Get category spending forecasts
+     */
+    public function get_category_spending_forecasts($budget_id) {
+        $categories = $this->get_spending_by_category($budget_id);
+        $forecasts = array();
+        
+        foreach ($categories as $category) {
+            $avg_monthly = $this->wpdb->get_var($this->wpdb->prepare(
+                "SELECT AVG(monthly_total) FROM (
+                    SELECT SUM(expense_amount) as monthly_total
+                    FROM {$this->outcomes_table} 
+                    WHERE budget_id = %d AND category = %s
+                    GROUP BY YEAR(expense_date), MONTH(expense_date)
+                ) as monthly_data",
+                $budget_id, $category->category
+            ));
+            
+            $forecasts[] = array(
+                'category' => $category->category,
+                'current_spending' => $category->total,
+                'predicted_monthly' => $avg_monthly,
+                'trend' => $avg_monthly > $category->total ? 'increasing' : 'decreasing'
+            );
+        }
+        
+        return $forecasts;
+    }
+
+    /**
+     * Get previous months comparison
+     */
+    public function get_previous_months_comparison($budget_id) {
+        return $this->wpdb->get_results($this->wpdb->prepare(
+            "SELECT 
+                DATE_FORMAT(expense_date, '%Y-%m') as month,
+                SUM(expense_amount) as total_spent,
+                COUNT(*) as transaction_count
+             FROM {$this->outcomes_table} 
+             WHERE budget_id = %d 
+             GROUP BY DATE_FORMAT(expense_date, '%Y-%m') 
+             ORDER BY month DESC 
+             LIMIT 6",
+            $budget_id
+        ));
+    }
+
+    /**
+     * Get category month comparison
+     */
+    public function get_category_month_comparison($budget_id) {
+        return $this->wpdb->get_results($this->wpdb->prepare(
+            "SELECT 
+                category,
+                SUM(CASE WHEN YEAR(expense_date) = YEAR(CURDATE()) AND MONTH(expense_date) = MONTH(CURDATE()) THEN expense_amount ELSE 0 END) as current_month,
+                SUM(CASE WHEN YEAR(expense_date) = YEAR(CURDATE() - INTERVAL 1 MONTH) AND MONTH(expense_date) = MONTH(CURDATE() - INTERVAL 1 MONTH) THEN expense_amount ELSE 0 END) as previous_month
+             FROM {$this->outcomes_table} 
+             WHERE budget_id = %d 
+             GROUP BY category 
+             HAVING current_month > 0 OR previous_month > 0
+             ORDER BY current_month DESC",
+            $budget_id
+        ));
+    }
+
+    /**
+     * Get budget efficiency metrics
+     */
+    public function get_budget_efficiency_metrics($budget_id) {
+        $budget = $this->get_budget($budget_id);
+        $current_spent = $this->get_total_spent_this_month($budget_id);
+        $days_passed = date('j');
+        $days_in_month = date('t');
+        
+        $expected_spending = ($budget['monthly_budget'] / $days_in_month) * $days_passed;
+        $efficiency_ratio = $expected_spending > 0 ? ($current_spent / $expected_spending) : 0;
+        
+        return array(
+            'efficiency_ratio' => $efficiency_ratio,
+            'days_passed' => $days_passed,
+            'days_remaining' => $days_in_month - $days_passed,
+            'budget_utilization' => ($current_spent / ($budget['monthly_budget'] + $budget['additional_budget'])) * 100,
+            'daily_target' => $budget['monthly_budget'] / $days_in_month,
+            'actual_daily_average' => $this->get_average_daily_spending($budget_id)
+        );
+    }
+
+    /**
+     * Get recent spending trend for risk analysis
+     */
+    public function get_recent_spending_trend($budget_id, $days = 7) {
+        return $this->wpdb->get_var($this->wpdb->prepare(
+            "SELECT COALESCE(SUM(expense_amount), 0) FROM {$this->outcomes_table} 
+             WHERE budget_id = %d AND expense_date >= DATE_SUB(CURDATE(), INTERVAL %d DAY)",
+            $budget_id, $days
+        ));
+    }
+
+    /**
+     * Calculate projection accuracy based on historical data
+     */
+    private function calculate_projection_accuracy($budget_id) {
+        // Simple accuracy calculation - can be enhanced
+        $historical_months = $this->wpdb->get_results($this->wpdb->prepare(
+            "SELECT 
+                DATE_FORMAT(expense_date, '%Y-%m') as month,
+                SUM(expense_amount) as actual_spent
+             FROM {$this->outcomes_table} 
+             WHERE budget_id = %d 
+             GROUP BY DATE_FORMAT(expense_date, '%Y-%m') 
+             ORDER BY month DESC 
+             LIMIT 3",
+            $budget_id
+        ));
+        
+        if (count($historical_months) >= 2) {
+            $variance = 0;
+            for ($i = 0; $i < count($historical_months) - 1; $i++) {
+                $variance += abs($historical_months[$i]->actual_spent - $historical_months[$i + 1]->actual_spent);
+            }
+            $avg_variance = $variance / (count($historical_months) - 1);
+            
+            // Return accuracy as percentage (lower variance = higher accuracy)
+            $budget = $this->get_budget($budget_id);
+            $accuracy = max(0, 100 - (($avg_variance / $budget['monthly_budget']) * 100));
+            return min(100, $accuracy);
+        }
+        
+        return 75; // Default accuracy when insufficient data
+    }
+
+    /**
      * UTILITY METHODS
      */
 
@@ -1004,6 +1564,51 @@ class Budgex_Database {
         if (defined('WP_DEBUG') && WP_DEBUG) {
             error_log("Budgex DB Error in {$operation}: " . $error);
         }
+    }
+
+    /**
+     * Get outcomes by IDs
+     */
+    public function get_outcomes_by_ids($outcome_ids) {
+        global $wpdb;
+        
+        if (empty($outcome_ids)) {
+            return array();
+        }
+        
+        $placeholders = implode(',', array_fill(0, count($outcome_ids), '%d'));
+        
+        $query = $wpdb->prepare("
+            SELECT o.*, u.display_name as user_name 
+            FROM {$this->outcomes_table} o
+            LEFT JOIN {$wpdb->users} u ON o.user_id = u.ID
+            WHERE o.id IN ($placeholders)
+            ORDER BY o.date DESC
+        ", $outcome_ids);
+        
+        return $wpdb->get_results($query);
+    }
+
+    /**
+     * Update outcome category
+     */
+    public function update_outcome_category($outcome_id, $category) {
+        global $wpdb;
+        
+        $result = $wpdb->update(
+            $this->outcomes_table,
+            array('category' => $category),
+            array('id' => $outcome_id),
+            array('%s'),
+            array('%d')
+        );
+        
+        if ($result === false) {
+            $this->log_db_error('update_outcome_category', $wpdb->last_error);
+            return false;
+        }
+        
+        return true;
     }
 }
 ?>

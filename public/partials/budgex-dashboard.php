@@ -159,19 +159,23 @@ foreach (array_merge($budgets, $shared_budgets) as $budget) {
                         
                         <div class="budget-card-actions">
                             <?php if ($is_frontend): ?>
-                                <a href="<?php echo home_url('/budgex/budget/' . $budget->id . '/'); ?>" class="button primary view-budget" data-budget-id="<?php echo $budget->id; ?>">
+                                <a href="<?php echo home_url('/budgexpage/' . $budget->id . '/'); ?>" class="button primary view-budget" data-budget-id="<?php echo $budget->id; ?>">
                                     <?php _e('צפה בתקציב', 'budgex'); ?>
                                 </a>
                             <?php else: ?>
-                                <a href="<?php echo home_url('/budgex/budget/' . $budget->id . '/'); ?>" class="button primary">
+                                <a href="<?php echo home_url('/budgexpage/' . $budget->id . '/'); ?>" class="button primary">
                                     <?php _e('צפה בתקציב', 'budgex'); ?>
                                 </a>
                             <?php endif; ?>
                             
                             <?php if ($user_role === 'owner' || $user_role === 'admin'): ?>
-                                <button type="button" class="button secondary manage-budget-btn" data-budget-id="<?php echo esc_attr($budget->id); ?>" data-budget-name="<?php echo esc_attr($budget->budget_name); ?>">
+                                <a href="<?php echo esc_url(home_url('/budgexpage/' . $budget->id . '/')); ?>" 
+                                   class="button secondary budgex-advanced-btn" 
+                                   style="display: inline-block !important; pointer-events: auto !important; position: relative !important; z-index: 999 !important;"
+                                   data-budget-id="<?php echo $budget->id; ?>"
+                                   onclick="console.log('Navigating to budget', this.href); return true;">
                                     <?php _e('ניהול מתקדם', 'budgex'); ?>
-                                </button>
+                                </a>
                             <?php endif; ?>
                         </div>
                     </div>
@@ -351,6 +355,29 @@ jQuery(document).ready(function($) {
         console.log('Navigating now...');
         
         window.location.href = targetUrl;
+    });
+    
+    // Enhanced navigation for advanced management buttons
+    $('.budgex-advanced-btn').on('click', function(e) {
+        e.stopPropagation();
+        e.preventDefault();
+        
+        var url = $(this).attr('href');
+        var budgetId = $(this).data('budget-id');
+        
+        console.log('🔄 Advanced management clicked for budget:', budgetId);
+        console.log('🔗 Navigating to URL:', url);
+        
+        // Force navigation
+        window.location.href = url;
+        return false;
+    });
+    
+    // Ensure buttons are clickable (override any CSS blocking)
+    $('.budgex-advanced-btn').css({
+        'pointer-events': 'auto !important',
+        'position': 'relative',
+        'z-index': '999'
     });
     
     // Handle view all budgets button

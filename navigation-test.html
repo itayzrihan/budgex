@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Budgex Navigation Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { background: #f9f9f9; padding: 15px; margin: 10px 0; border-radius: 5px; }
+        .success { background: #e8f5e8; border-left: 4px solid #4caf50; }
+        .warning { background: #fff3cd; border-left: 4px solid #ffc107; }
+        .error { background: #ffebee; border-left: 4px solid #f44336; }
+        .test-link { display: inline-block; padding: 10px 20px; margin: 5px; text-decoration: none; background: #007cba; color: white; border-radius: 3px; }
+        .test-link:hover { background: #005a87; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Budgex Navigation Test Page</h1>
+    
+    <div class="test-section warning">
+        <h2>⚠️ Before Testing</h2>
+        <p>Make sure you have applied the fixes:</p>
+        <ol>
+            <li>Added the code to your theme's functions.php</li>
+            <li>Flushed permalinks (Settings → Permalinks → Save Changes)</li>
+            <li>Ensured you're logged into WordPress</li>
+        </ol>
+    </div>
+    
+    <div class="test-section">
+        <h2>🔗 Direct URL Tests</h2>
+        <p>Click these links to test direct navigation:</p>
+        <a href="/budgex/" class="test-link">Dashboard (/budgex/)</a>
+        <a href="/budgex/budget/7/" class="test-link">Budget 7 (/budgex/budget/7/)</a>
+        <a href="/budgex/budget/1/" class="test-link">Budget 1 (/budgex/budget/1/)</a>
+    </div>
+    
+    <div class="test-section">
+        <h2>📊 Expected Results</h2>
+        <ul>
+            <li><strong>/budgex/</strong> → Should show dashboard with budget cards</li>
+            <li><strong>/budgex/budget/7/</strong> → Should show enhanced budget page with tabs</li>
+            <li><strong>If empty page:</strong> Functions.php fix not applied or permalinks not flushed</li>
+            <li><strong>If 404 error:</strong> Rewrite rules not working</li>
+        </ul>
+    </div>
+    
+    <div class="test-section">
+        <h2>🔍 Browser Console Check</h2>
+        <p>Open browser console (F12) and look for:</p>
+        <ul>
+            <li>✅ "Budgex Frontend App Loaded" - Template loaded successfully</li>
+            <li>✅ "Enhanced Budget Page Loaded" - Enhanced page working</li>
+            <li>❌ JavaScript errors - May block navigation</li>
+            <li>❌ 404 or 500 errors - Server-side issues</li>
+        </ul>
+    </div>
+    
+    <div class="test-section">
+        <h2>🐛 Debug Information</h2>
+        <p>Current page info:</p>
+        <div id="debug-info" style="background: #f0f0f0; padding: 10px; font-family: monospace;">
+            <script>
+                document.getElementById('debug-info').innerHTML = 
+                    'URL: ' + window.location.href + '<br>' +
+                    'User Agent: ' + navigator.userAgent + '<br>' +
+                    'Timestamp: ' + new Date().toLocaleString();
+            </script>
+        </div>
+    </div>
+    
+    <div class="test-section success">
+        <h2>✅ Success Indicators</h2>
+        <p>You know it's working when:</p>
+        <ul>
+            <li>Direct URLs load without 404 errors</li>
+            <li>Dashboard shows budget cards properly</li>
+            <li>Budget pages show tabbed interface</li>
+            <li>"ניהול מתקדם" buttons navigate correctly</li>
+            <li>No JavaScript errors in console</li>
+        </ul>
+    </div>
+    
+    <div class="test-section error">
+        <h2>🚨 If Still Not Working</h2>
+        <p>Try these troubleshooting steps:</p>
+        <ol>
+            <li><strong>Check WordPress Error Log:</strong> Look for PHP errors</li>
+            <li><strong>Deactivate/Reactivate Plugin:</strong> Forces re-initialization</li>
+            <li><strong>Test with Default Theme:</strong> Rule out theme conflicts</li>
+            <li><strong>Clear All Caches:</strong> Including server-side caching</li>
+            <li><strong>Check User Permissions:</strong> Ensure you have budget access</li>
+        </ol>
+    </div>
+    
+    <script>
+        // Test JavaScript functionality
+        console.log('🧪 Navigation test page loaded');
+        
+        // Test for jQuery
+        if (typeof jQuery !== 'undefined') {
+            console.log('✅ jQuery is available');
+        } else {
+            console.log('❌ jQuery not available - may cause navigation issues');
+        }
+        
+        // Test for Budgex objects
+        if (typeof budgex_ajax !== 'undefined') {
+            console.log('✅ Budgex AJAX object available');
+        } else {
+            console.log('⚠️ Budgex AJAX object not available - expected on non-Budgex pages');
+        }
+        
+        // Add click tracking
+        document.querySelectorAll('.test-link').forEach(function(link) {
+            link.addEventListener('click', function(e) {
+                console.log('🔗 Test link clicked:', this.href);
+            });
+        });
+    </script>
+</body>
+</html>

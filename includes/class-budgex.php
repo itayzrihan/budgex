@@ -16,6 +16,7 @@ class Budgex {
         add_action('init', array($this, 'init'));
         add_action('init', array($this, 'create_frontend_pages'));
         add_action('template_redirect', array($this, 'handle_budgex_frontend'));
+        add_filter('query_vars', array($this, 'add_query_vars'));
         add_shortcode('budgex_app', array($this, 'display_budgex_app'));
         // Admin-only AJAX handlers should remain here if needed
         // Public AJAX handlers are now handled by Budgex_Public class
@@ -35,6 +36,13 @@ class Budgex {
             'top'
         );
         
+        // New direct enhanced budget page route
+        add_rewrite_rule(
+            '^budgexpage/([0-9]+)/?$',
+            'index.php?budgex_enhanced_page=direct&budget_id=$matches[1]',
+            'top'
+        );
+        
         add_rewrite_rule(
             '^budgex/([^/]+)/?$',
             'index.php?budgex_page=$matches[1]',
@@ -43,12 +51,23 @@ class Budgex {
         
         add_rewrite_tag('%budgex_page%', '([^&]+)');
         add_rewrite_tag('%budget_id%', '([0-9]+)');
+        add_rewrite_tag('%budgex_enhanced_page%', '([^&]+)');
         
         // Flush rewrite rules on activation
         if (get_option('budgex_flush_rewrite_rules')) {
             flush_rewrite_rules();
             delete_option('budgex_flush_rewrite_rules');
         }
+    }
+    
+    /**
+     * Add custom query variables
+     */
+    public function add_query_vars($vars) {
+        $vars[] = 'budgex_page';
+        $vars[] = 'budget_id';
+        $vars[] = 'budgex_enhanced_page';
+        return $vars;
     }
 
     /**
@@ -82,11 +101,32 @@ class Budgex {
      */
     public function handle_budgex_frontend() {
         $budgex_page = get_query_var('budgex_page');
+        $budgex_enhanced_page = get_query_var('budgex_enhanced_page');
         $budget_id = get_query_var('budget_id');
         
         // Debug logging (remove in production)
         if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log("Budgex Frontend Handler - Page: $budgex_page, Budget ID: $budget_id, User logged in: " . (is_user_logged_in() ? 'Yes' : 'No'));
+            error_log("Budgex Frontend Handler - Page: $budgex_page, Enhanced: $budgex_enhanced_page, Budget ID: $budget_id, User logged in: " . (is_user_logged_in() ? 'Yes' : 'No'));
+        }
+        
+        // Handle direct enhanced budget page route
+        if ($budgex_enhanced_page === 'direct' && $budget_id) {
+            // Ensure user is logged in
+            if (!is_user_logged_in()) {
+                wp_redirect(wp_login_url(home_url('/budgexpage/' . $budget_id . '/')));
+                exit;
+            }
+            
+            // Check user permissions
+            $user_id = get_current_user_id();
+            if (!$this->permissions->can_view_budget($budget_id, $user_id)) {
+                wp_redirect(home_url('/budgex/'));
+                exit;
+            }
+            
+            // Load the enhanced budget page template directly
+            add_filter('template_include', array($this, 'load_enhanced_budget_template'));
+            return;
         }
         
         if ($budgex_page) {
@@ -123,6 +163,19 @@ class Budgex {
      */
     public function load_budgex_template($template) {
         $custom_template = BUDGEX_DIR . 'public/templates/budgex-app.php';
+        
+        if (file_exists($custom_template)) {
+            return $custom_template;
+        }
+        
+        return $template;
+    }
+
+    /**
+     * Load enhanced budget template for direct access
+     */
+    public function load_enhanced_budget_template($template) {
+        $custom_template = BUDGEX_DIR . 'public/templates/budgex-enhanced-direct.php';
         
         if (file_exists($custom_template)) {
             return $custom_template;

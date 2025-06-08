@@ -18,6 +18,7 @@ class Budgex_Public {
         
         add_shortcode('budgex_dashboard', [$this, 'render_dashboard']);
         add_shortcode('budgex_budget_page', [$this, 'render_budget_page']);
+        add_shortcode('budgex_enhanced_budget_page', [$this, 'render_enhanced_budget_page']);
         add_action('wp_enqueue_scripts', [$this, 'enqueue_styles']);
         add_action('wp_enqueue_scripts', [$this, 'enqueue_scripts']);
         
@@ -65,21 +66,54 @@ class Budgex_Public {
         add_action('wp_ajax_budgex_get_recurring_expenses', [$this, 'ajax_get_recurring_expenses']);
         add_action('wp_ajax_budgex_get_projected_balance', [$this, 'ajax_get_projected_balance']);
         
+        // Enhanced budget page AJAX handlers
+        add_action('wp_ajax_budgex_get_chart_data', [$this, 'ajax_get_chart_data']);
+        add_action('wp_ajax_budgex_get_analysis_data', [$this, 'ajax_get_analysis_data']);
+        add_action('wp_ajax_budgex_save_budget_settings', [$this, 'ajax_save_budget_settings']);
+        add_action('wp_ajax_budgex_bulk_delete_outcomes', [$this, 'ajax_bulk_delete_outcomes']);
+        add_action('wp_ajax_budgex_export_data', [$this, 'ajax_export_data']);
+        add_action('wp_ajax_budgex_search_outcomes', [$this, 'ajax_search_outcomes']);
+        add_action('wp_ajax_budgex_filter_outcomes', [$this, 'ajax_filter_outcomes']);
+        add_action('wp_ajax_budgex_get_quick_stats', [$this, 'ajax_get_quick_stats']);
+        add_action('wp_ajax_budgex_export_selected_outcomes', [$this, 'ajax_export_selected_outcomes']);
+        add_action('wp_ajax_budgex_update_outcomes_category', [$this, 'ajax_update_outcomes_category']);
+        
         add_action('wp', [$this, 'handle_budget_page_display']);
     }
 
     public function enqueue_styles() {
         wp_enqueue_style('budgex-public', BUDGEX_URL . 'public/css/budgex-public.css', array(), BUDGEX_VERSION);
+        
+        // Check if we're on a page that needs enhanced budget styles
+        if ((is_page() && (has_shortcode(get_post()->post_content, 'budgex_enhanced_budget_page') || 
+            get_query_var('budget_id'))) || 
+            strpos($_SERVER['REQUEST_URI'], '/budgex/budget/') !== false ||
+            (isset($_GET['page']) && $_GET['page'] === 'budgex') ||
+            get_query_var('budget_id')) {
+            wp_enqueue_style('budgex-enhanced-budget', BUDGEX_URL . 'public/css/budgex-enhanced-budget.css', array('budgex-public'), BUDGEX_VERSION);
+        }
     }
 
     public function enqueue_scripts() {
         wp_enqueue_script('budgex-public', BUDGEX_URL . 'public/js/budgex-public.js', ['jquery'], BUDGEX_VERSION, true);
         
+        // Check if we're on a page that needs enhanced budget scripts
+        if ((is_page() && (has_shortcode(get_post()->post_content, 'budgex_enhanced_budget_page') || 
+            get_query_var('budget_id'))) || 
+            strpos($_SERVER['REQUEST_URI'], '/budgex/budget/') !== false ||
+            (isset($_GET['page']) && $_GET['page'] === 'budgex') ||
+            get_query_var('budget_id')) {
+            // Enqueue Chart.js for data visualization
+            wp_enqueue_script('chart-js', 'https://cdn.jsdelivr.net/npm/chart.js', array(), '3.9.1', true);
+            wp_enqueue_script('budgex-enhanced-budget', BUDGEX_URL . 'public/js/budgex-enhanced-budget.js', 
+                ['jquery', 'budgex-public', 'chart-js'], BUDGEX_VERSION, true);
+        }
+        
         wp_localize_script('budgex-public', 'budgex_ajax', array(
             'ajax_url' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('budgex_public_nonce'),
             'dashboard_url' => home_url('/budgex/'),
-            'budget_url' => home_url('/budgex/budget/'),
+            'budget_url' => home_url('/budgexpage/'),
             'strings' => array(
                 'loading' => __('טוען...', 'budgex'),
                 'error' => __('שגיאה', 'budgex'),
@@ -93,7 +127,11 @@ class Budgex_Public {
                 'outcome_added' => __('ההוצאה נוספה בהצלחה', 'budgex'),
                 'outcome_updated' => __('ההוצאה עודכנה בהצלחה', 'budgex'),
                 'outcome_deleted' => __('ההוצאה נמחקה בהצלחה', 'budgex'),
-                'invitation_accepted' => __('ההזמנה אושרה בהצלחה', 'budgex')
+                'invitation_accepted' => __('ההזמנה אושרה בהצלחה', 'budgex'),
+                'bulk_delete_confirm' => __('האם אתה בטוח שברצונך למחוק את כל הפריטים הנבחרים?', 'budgex'),
+                'export_success' => __('הנתונים יוצאו בהצלחה', 'budgex'),
+                'settings_saved' => __('ההגדרות נשמרו בהצלחה', 'budgex'),
+                'auto_saved' => __('נשמר אוטומטית', 'budgex')
             )
         ));
     }
@@ -141,6 +179,26 @@ class Budgex_Public {
         return ob_get_clean();
     }
 
+    public function render_enhanced_budget_page($atts) {
+        $atts = shortcode_atts(['id' => ''], $atts);
+        
+        if (!is_user_logged_in()) {
+            return '<div class="budgex-login-required">' . 
+                   '<p>' . __('נדרש להתחבר כדי לצפות בתקציב', 'budgex') . '</p>' .
+                   '<a href="' . wp_login_url(get_permalink()) . '" class="button">' . __('התחבר', 'budgex') . '</a>' .
+                   '</div>';
+        }
+        
+        $budget_id = intval($atts['id']);
+        if (!$budget_id) {
+            return '<div class="budgex-error"><p>' . __('לא נבחר תקציב תקין', 'budgex') . '</p></div>';
+        }
+        
+        ob_start();
+        $this->display_enhanced_budget($budget_id);
+        return ob_get_clean();
+    }
+
     private function display_single_budget($budget_id) {
         $user_id = get_current_user_id();
         
@@ -156,6 +214,29 @@ class Budgex_Public {
         $user_role = $this->permissions->get_user_role_on_budget($budget_id, $user_id);
         
         include plugin_dir_path(__FILE__) . 'partials/budgex-budget-page.php';
+    }
+
+    private function display_enhanced_budget($budget_id) {
+        $user_id = get_current_user_id();
+        
+        if (!$this->permissions->can_view_budget($budget_id, $user_id)) {
+            include plugin_dir_path(__FILE__) . 'partials/budgex-no-access.php';
+            return;
+        }
+        
+        $budget = $this->database->get_budget($budget_id);
+        $calculation = Budgex_Budget_Calculator::calculate_remaining_budget($budget_id);
+        $outcomes = $this->database->get_budget_outcomes($budget_id);
+        $monthly_breakdown = Budgex_Budget_Calculator::get_monthly_breakdown($budget_id);
+        $user_role = $this->permissions->get_user_role_on_budget($budget_id, $user_id);
+        
+        // Get additional data for enhanced features
+        $future_expenses = $this->database->get_future_expenses($budget_id);
+        $recurring_expenses = $this->database->get_recurring_expenses($budget_id);
+        $budget_users = $this->database->get_budget_users($budget_id);
+        $pending_invitations = $this->database->get_budget_invitations($budget_id);
+        
+        include plugin_dir_path(__FILE__) . 'partials/budgex-public-enhanced-budget-page.php';
     }
 
     /**
@@ -194,6 +275,14 @@ class Budgex_Public {
      * Display single budget for frontend access with security check
      */
     public function display_single_budget_frontend($budget_id) {
+        // Force enqueue enhanced assets for this page
+        $this->force_enqueue_enhanced_assets();
+        
+        // Add error reporting for debugging
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log("Budgex: display_single_budget_frontend called with budget_id: $budget_id");
+        }
+        
         if (!is_user_logged_in()) {
             return '<div class="budgex-login-required">' . 
                    '<p>' . __('נדרש להתחבר כדי לצפות בתקציב', 'budgex') . '</p>' .
@@ -204,8 +293,16 @@ class Budgex_Public {
         $user_id = get_current_user_id();
         $budget_id = intval($budget_id);
         
+        // Debug log
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log("Budgex: User ID: $user_id, Budget ID: $budget_id");
+        }
+        
         // Security check: Can user view this budget?
         if (!$this->permissions->can_view_budget($budget_id, $user_id)) {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log("Budgex: Access denied for user $user_id to budget $budget_id");
+            }
             return '<div class="budgex-no-access">' . 
                    '<h3>' . __('אין הרשאה לצפות בתקציב זה', 'budgex') . '</h3>' .
                    '<p>' . __('אין לך הרשאה לצפות בתקציב זה. אם לדעתך זה טעות, צור קשר עם בעל התקציב.', 'budgex') . '</p>' .
@@ -215,6 +312,9 @@ class Budgex_Public {
         
         $budget = $this->database->get_budget($budget_id);
         if (!$budget) {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log("Budgex: Budget $budget_id not found in database");
+            }
             return '<div class="budgex-error">' . 
                    '<h3>' . __('תקציב לא נמצא', 'budgex') . '</h3>' .
                    '<p>' . __('התקציב שביקשת לא נמצא במערכת.', 'budgex') . '</p>' .
@@ -222,14 +322,59 @@ class Budgex_Public {
                    '</div>';
         }
         
-        $calculation = Budgex_Budget_Calculator::calculate_remaining_budget($budget_id);
-        $outcomes = $this->database->get_budget_outcomes($budget_id);
-        $monthly_breakdown = Budgex_Budget_Calculator::get_monthly_breakdown($budget_id);
-        $user_role = $this->permissions->get_user_role_on_budget($budget_id, $user_id);
+        // Debug log
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log("Budgex: Budget found, starting data collection");
+        }
         
-        ob_start();
-        include plugin_dir_path(__FILE__) . 'partials/budgex-budget-page.php';
-        return ob_get_clean();
+        try {
+            // Use the enhanced budget page template for better user experience
+            $calculation = Budgex_Budget_Calculator::calculate_remaining_budget($budget_id);
+            $outcomes = $this->database->get_budget_outcomes($budget_id);
+            $monthly_breakdown = Budgex_Budget_Calculator::get_monthly_breakdown($budget_id);
+            $user_role = $this->permissions->get_user_role_on_budget($budget_id, $user_id);
+            
+            // Get additional data for enhanced features
+            $calculator = new Budgex_Budget_Calculator();
+            $shared_users = $this->database->get_budget_shared_users($budget_id);
+            $pending_invitations = $this->database->get_pending_invitations($budget_id);
+            $future_expenses = $this->database->get_future_expenses($budget_id);
+            $recurring_expenses = $this->database->get_recurring_expenses($budget_id);
+            $budget_adjustments = $this->database->get_budget_adjustments($budget_id);
+            
+            // Calculate projected balance for enhanced features
+            $projected_balance = $calculator->calculate_projected_balance($budget_id);
+            
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log("Budgex: Data collection complete, loading template");
+                error_log("Budgex: Outcomes count: " . count($outcomes));
+                error_log("Budgex: Future expenses count: " . count($future_expenses));
+            }
+            
+            $template_path = plugin_dir_path(__FILE__) . 'partials/budgex-public-enhanced-budget-page.php';
+            if (!file_exists($template_path)) {
+                if (defined('WP_DEBUG') && WP_DEBUG) {
+                    error_log("Budgex: Template not found at $template_path");
+                }
+                return '<div class="budgex-error"><h3>Template Error</h3><p>Enhanced budget template not found.</p></div>';
+            }
+            
+            ob_start();
+            include $template_path;
+            $content = ob_get_clean();
+            
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log("Budgex: Template loaded, content length: " . strlen($content));
+            }
+            
+            return $content;
+            
+        } catch (Exception $e) {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log("Budgex: Exception in display_single_budget_frontend: " . $e->getMessage());
+            }
+            return '<div class="budgex-error"><h3>Error Loading Budget</h3><p>' . $e->getMessage() . '</p></div>';
+        }
     }
 
     public function ajax_add_outcome() {
@@ -456,7 +601,7 @@ class Budgex_Public {
         $outcome_id = intval($_POST['outcome_id']);
         $budget_id = intval($_POST['budget_id']);
         $user_id = get_current_user_id();
-        
+
         if (!$this->permissions->can_edit_outcomes($budget_id, $user_id)) {
             wp_send_json_error(array('message' => __('אין הרשאה לערוך הוצאות בתקציב זה', 'budgex')));
         }
@@ -1594,12 +1739,660 @@ class Budgex_Public {
         wp_send_json_success(array('projection' => $projection));
     }
 
+    // Enhanced Budget Page AJAX Handlers
+    
+    public function ajax_get_chart_data() {
+        check_ajax_referer('budgex_public_nonce', 'nonce');
+        
+        $budget_id = intval($_POST['budget_id']);
+        $chart_type = sanitize_text_field($_POST['chart_type']);
+        $user_id = get_current_user_id();
+
+        if (!$this->permissions->can_view_budget($budget_id, $user_id)) {
+            wp_send_json_error(array('message' => __('אין הרשאה לצפות בתקציב זה', 'budgex')));
+        }
+
+        $data = array();
+        
+        switch ($chart_type) {
+            case 'monthly_breakdown':
+                $data = $this->get_monthly_breakdown_chart_data($budget_id);
+                break;
+            case 'category_analysis':
+                $data = $this->get_category_analysis_chart_data($budget_id);
+                break;
+            case 'spending_trends':
+                $data = $this->get_spending_trends_chart_data($budget_id);
+                break;
+            case 'budget_progress':
+                $data = $this->get_budget_progress_chart_data($budget_id);
+                break;
+            default:
+                wp_send_json_error(array('message' => __('סוג גרף לא תקין', 'budgex')));
+        }
+        
+        wp_send_json_success($data);
+    }
+    
+    public function ajax_get_analysis_data() {
+        check_ajax_referer('budgex_public_nonce', 'nonce');
+        
+        $budget_id = intval($_POST['budget_id']);
+        $analysis_type = sanitize_text_field($_POST['analysis_type']);
+        $user_id = get_current_user_id();
+
+        if (!$this->permissions->can_view_budget($budget_id, $user_id)) {
+            wp_send_json_error(array('message' => __('אין הרשאה לצפות בתקציב זה', 'budgex')));
+        }
+
+        $data = array();
+        
+        switch ($analysis_type) {
+            case 'spending_patterns':
+                $data = $this->get_spending_patterns_analysis($budget_id);
+                break;
+            case 'budget_health':
+                $data = $this->get_budget_health_analysis($budget_id);
+                break;
+            case 'predictions':
+                $data = $this->get_budget_predictions($budget_id);
+                break;
+            case 'comparisons':
+                $data = $this->get_budget_comparisons($budget_id);
+                break;
+            default:
+                wp_send_json_error(array('message' => __('סוג ניתוח לא תקין', 'budgex')));
+        }
+        
+        wp_send_json_success($data);
+    }
+    
+    public function ajax_save_budget_settings() {
+        check_ajax_referer('budgex_public_nonce', 'nonce');
+        
+        $budget_id = intval($_POST['budget_id']);
+        $settings = $_POST['settings'];
+        $user_id = get_current_user_id();
+
+        if (!$this->permissions->can_edit_budget($budget_id, $user_id)) {
+            wp_send_json_error(array('message' => __('אין הרשאה לערוך תקציב זה', 'budgex')));
+        }
+
+        // Validate and sanitize settings
+        $validated_settings = array();
+        if (isset($settings['budget_name'])) {
+            $validated_settings['budget_name'] = sanitize_text_field($settings['budget_name']);
+        }
+        if (isset($settings['budget_description'])) {
+            $validated_settings['budget_description'] = sanitize_textarea_field($settings['budget_description']);
+        }
+        if (isset($settings['auto_save'])) {
+            $validated_settings['auto_save'] = (bool) $settings['auto_save'];
+        }
+        if (isset($settings['notifications_enabled'])) {
+            $validated_settings['notifications_enabled'] = (bool) $settings['notifications_enabled'];
+        }
+        if (isset($settings['currency'])) {
+            $validated_settings['currency'] = sanitize_text_field($settings['currency']);
+        }
+        if (isset($settings['budget_period'])) {
+            $validated_settings['budget_period'] = sanitize_text_field($settings['budget_period']);
+        }
+        
+        $result = $this->database->update_budget_settings($budget_id, $validated_settings);
+        
+        if ($result) {
+            wp_send_json_success(array('message' => __('הגדרות נשמרו בהצלחה', 'budgex')));
+        } else {
+            wp_send_json_error(array('message' => __('שגיאה בשמירת ההגדרות', 'budgex')));
+        }
+    }
+    
+    public function ajax_bulk_delete_outcomes() {
+        check_ajax_referer('budgex_public_nonce', 'nonce');
+        
+        $budget_id = intval($_POST['budget_id']);
+        $outcome_ids = array_map('intval', $_POST['outcome_ids']);
+        $user_id = get_current_user_id();
+
+        if (!$this->permissions->can_edit_budget($budget_id, $user_id)) {
+            wp_send_json_error(array('message' => __('אין הרשאה לערוך תקציב זה', 'budgex')));
+        }
+
+        if (empty($outcome_ids)) {
+            wp_send_json_error(array('message' => __('לא נבחרו פריטים למחיקה', 'budgex')));
+        }
+
+        $deleted_count = 0;
+        foreach ($outcome_ids as $outcome_id) {
+            if ($this->database->delete_outcome($outcome_id, $budget_id)) {
+                $deleted_count++;
+            }
+        }
+        
+        wp_send_json_success(array(
+            'deleted_count' => $deleted_count,
+            'message' => sprintf(__('נמחקו %d פריטים בהצלחה', 'budgex'), $deleted_count)
+        ));
+    }
+    
+    public function ajax_export_data() {
+        check_ajax_referer('budgex_public_nonce', 'nonce');
+        
+        $budget_id = intval($_POST['budget_id']);
+        $export_format = sanitize_text_field($_POST['export_format']);
+        $date_range = sanitize_text_field($_POST['date_range']);
+        $user_id = get_current_user_id();
+
+        if (!$this->permissions->can_view_budget($budget_id, $user_id)) {
+            wp_send_json_error(array('message' => __('אין הרשאה לצפות בתקציב זה', 'budgex')));
+        }
+
+        $export_data = $this->prepare_export_data($budget_id, $date_range);
+        
+        switch ($export_format) {
+            case 'csv':
+                $file_url = $this->generate_csv_export($export_data, $budget_id);
+                break;
+            case 'excel':
+                $file_url = $this->generate_excel_export($export_data, $budget_id);
+                break;
+            case 'pdf':
+                $file_url = $this->generate_pdf_export($export_data, $budget_id);
+                break;
+            default:
+                wp_send_json_error(array('message' => __('פורמט יצוא לא תקין', 'budgex')));
+        }
+        
+        if ($file_url) {
+            wp_send_json_success(array(
+                'file_url' => $file_url,
+                'message' => __('הקובץ נוצר בהצלחה', 'budgex')
+            ));
+        } else {
+            wp_send_json_error(array('message' => __('שגיאה ביצירת הקובץ', 'budgex')));
+        }
+    }
+    
+    public function ajax_search_outcomes() {
+        check_ajax_referer('budgex_public_nonce', 'nonce');
+        
+        $budget_id = intval($_POST['budget_id']);
+        $search_term = sanitize_text_field($_POST['search_term']);
+        $user_id = get_current_user_id();
+
+        if (!$this->permissions->can_view_budget($budget_id, $user_id)) {
+            wp_send_json_error(array('message' => __('אין הרשאה לצפות בתקציב זה', 'budgex')));
+        }
+
+        $outcomes = $this->database->search_outcomes($budget_id, $search_term);
+        
+        wp_send_json_success(array('outcomes' => $outcomes));
+    }
+    
+    public function ajax_filter_outcomes() {
+        check_ajax_referer('budgex_public_nonce', 'nonce');
+        
+        $budget_id = intval($_POST['budget_id']);
+        $filters = $_POST['filters'];
+        $user_id = get_current_user_id();
+
+        if (!$this->permissions->can_view_budget($budget_id, $user_id)) {
+            wp_send_json_error(array('message' => __('אין הרשאה לצפות בתקציב זה', 'budgex')));
+        }
+
+        // Sanitize filters
+        $sanitized_filters = array();
+        if (isset($filters['category'])) {
+            $sanitized_filters['category'] = sanitize_text_field($filters['category']);
+        }
+        if (isset($filters['date_from'])) {
+            $sanitized_filters['date_from'] = sanitize_text_field($filters['date_from']);
+        }
+        if (isset($filters['date_to'])) {
+            $sanitized_filters['date_to'] = sanitize_text_field($filters['date_to']);
+        }
+        if (isset($filters['amount_min'])) {
+            $sanitized_filters['amount_min'] = floatval($filters['amount_min']);
+        }
+        if (isset($filters['amount_max'])) {
+            $sanitized_filters['amount_max'] = floatval($filters['amount_max']);
+        }
+        if (isset($filters['type'])) {
+            $sanitized_filters['type'] = sanitize_text_field($filters['type']);
+        }
+
+        $outcomes = $this->database->filter_outcomes($budget_id, $sanitized_filters);
+        
+        wp_send_json_success(array('outcomes' => $outcomes));
+    }
+    
+    public function ajax_get_quick_stats() {
+        check_ajax_referer('budgex_public_nonce', 'nonce');
+        
+        $budget_id = intval($_POST['budget_id']);
+        $user_id = get_current_user_id();
+
+        if (!$this->permissions->can_view_budget($budget_id, $user_id)) {
+            wp_send_json_error(array('message' => __('אין הרשאה לצפות בתקציב זה', 'budgex')));
+        }
+
+        $stats = array(
+            'total_spent_today' => $this->database->get_total_spent_today($budget_id),
+            'total_spent_this_week' => $this->database->get_total_spent_this_week($budget_id),
+            'total_spent_this_month' => $this->database->get_total_spent_this_month($budget_id),
+            'remaining_budget' => $this->database->get_remaining_budget($budget_id),
+            'average_daily_spending' => $this->database->get_average_daily_spending($budget_id),
+            'top_categories' => $this->database->get_top_spending_categories($budget_id, 5),
+            'recent_transactions' => $this->database->get_recent_outcomes($budget_id, 5),
+            'budget_health_score' => $this->calculate_budget_health_score($budget_id)
+        );
+        
+        wp_send_json_success($stats);
+    }
+
+    // Helper methods for chart data generation
+    private function get_monthly_breakdown_chart_data($budget_id) {
+        $monthly_data = $this->database->get_monthly_spending_breakdown($budget_id);
+        return array(
+            'labels' => array_column($monthly_data, 'month'),
+            'datasets' => array(
+                array(
+                    'label' => __('הוצאות חודשיות', 'budgex'),
+                    'data' => array_column($monthly_data, 'total_spent'),
+                    'backgroundColor' => 'rgba(52, 152, 219, 0.8)',
+                    'borderColor' => 'rgba(52, 152, 219, 1)',
+                    'borderWidth' => 2
+                )
+            )
+        );
+    }
+    
+    private function get_category_analysis_chart_data($budget_id) {
+        $category_data = $this->database->get_spending_by_category($budget_id);
+        return array(
+            'labels' => array_column($category_data, 'category'),
+            'datasets' => array(
+                array(
+                    'data' => array_column($category_data, 'total'),
+                    'backgroundColor' => array(
+                        '#3498db', '#e74c3c', '#2ecc71', '#f39c12',
+                        '#9b59b6', '#1abc9c', '#34495e', '#f1c40f'
+                    )
+                )
+            )
+        );
+    }
+    
+    private function get_spending_trends_chart_data($budget_id) {
+        $trends_data = $this->database->get_spending_trends($budget_id);
+        return array(
+            'labels' => array_column($trends_data, 'date'),
+            'datasets' => array(
+                array(
+                    'label' => __('מגמת הוצאות', 'budgex'),
+                    'data' => array_column($trends_data, 'cumulative_spent'),
+                    'borderColor' => 'rgba(231, 76, 60, 1)',
+                    'backgroundColor' => 'rgba(231, 76, 60, 0.1)',
+                    'fill' => true,
+                    'tension' => 0.4
+                )
+            )
+        );
+    }
+    
+    private function get_budget_progress_chart_data($budget_id) {
+        $budget_info = $this->database->get_budget($budget_id);
+        $spent = $this->database->get_total_spent($budget_id);
+        $remaining = max(0, $budget_info['monthly_budget'] - $spent);
+        
+        return array(
+            'labels' => array(__('נוצל', 'budgex'), __('נותר', 'budgex')),
+            'datasets' => array(
+                array(
+                    'data' => array($spent, $remaining),
+                    'backgroundColor' => array('#e74c3c', '#2ecc71')
+                )
+            )
+        );
+    }
+
+    // Helper methods for analysis data
+    private function get_spending_patterns_analysis($budget_id) {
+        return array(
+            'daily_average' => $this->database->get_average_daily_spending($budget_id),
+            'peak_spending_days' => $this->database->get_peak_spending_days($budget_id),
+            'spending_frequency' => $this->database->get_spending_frequency($budget_id),
+            'seasonal_trends' => $this->database->get_seasonal_spending_trends($budget_id)
+        );
+    }
+    
+    private function get_budget_health_analysis($budget_id) {
+        $health_score = $this->calculate_budget_health_score($budget_id);
+        return array(
+            'health_score' => $health_score,
+            'risk_factors' => $this->identify_risk_factors($budget_id),
+            'recommendations' => $this->generate_budget_recommendations($budget_id),
+            'alerts' => $this->get_budget_alerts($budget_id)
+        );
+    }
+    
+    private function get_budget_predictions($budget_id) {
+        return array(
+            'projected_month_end' => $this->database->get_projected_month_end_balance($budget_id),
+            'trend_analysis' => $this->database->get_spending_trend_analysis($budget_id),
+            'category_forecasts' => $this->database->get_category_spending_forecasts($budget_id)
+        );
+    }
+    
+    private function get_budget_comparisons($budget_id) {
+        return array(
+            'previous_months' => $this->database->get_previous_months_comparison($budget_id),
+            'category_comparison' => $this->database->get_category_month_comparison($budget_id),
+            'efficiency_metrics' => $this->database->get_budget_efficiency_metrics($budget_id)
+        );
+    }
+
+    // Helper methods for export functionality
+    private function prepare_export_data($budget_id, $date_range) {
+        $date_filter = $this->parse_date_range($date_range);
+        return array(
+            'budget_info' => $this->database->get_budget($budget_id),
+            'outcomes' => $this->database->get_outcomes_for_export($budget_id, $date_filter),
+            'summary' => $this->database->get_budget_summary($budget_id, $date_filter),
+            'categories' => $this->database->get_category_breakdown($budget_id, $date_filter)
+        );
+    }
+    
+    private function generate_csv_export($data, $budget_id) {
+        // Implementation for CSV export
+        $upload_dir = wp_upload_dir();
+        $filename = 'budget_' . $budget_id . '_' . date('Y-m-d') . '.csv';
+        $filepath = $upload_dir['path'] . '/' . $filename;
+        
+        $file = fopen($filepath, 'w');
+        
+        // Add CSV headers
+        fputcsv($file, array('Date', 'Description', 'Category', 'Amount', 'Type'));
+        
+        // Add data rows
+        foreach ($data['outcomes'] as $outcome) {
+            fputcsv($file, array(
+                $outcome['expense_date'],
+                $outcome['expense_name'],
+                $outcome['category'],
+                $outcome['expense_amount'],
+                $outcome['expense_type']
+            ));
+        }
+        
+        fclose($file);
+        
+        return $upload_dir['url'] . '/' . $filename;
+    }
+    
+    private function generate_excel_export($data, $budget_id) {
+        // Simplified Excel export - would need PhpSpreadsheet for full functionality
+        return $this->generate_csv_export($data, $budget_id);
+    }
+    
+    private function generate_pdf_export($data, $budget_id) {
+        // PDF export would require a PDF library like TCPDF or mPDF
+        // For now, return CSV as fallback
+        return $this->generate_csv_export($data, $budget_id);
+    }
+    
+    private function parse_date_range($date_range) {
+        switch ($date_range) {
+            case 'this_month':
+                return array(
+                    'start' => date('Y-m-01'),
+                    'end' => date('Y-m-t')
+                );
+            case 'last_month':
+                return array(
+                    'start' => date('Y-m-01', strtotime('last month')),
+                    'end' => date('Y-m-t', strtotime('last month'))
+                );
+            case 'last_3_months':
+                return array(
+                    'start' => date('Y-m-01', strtotime('-3 months')),
+                    'end' => date('Y-m-t')
+                );
+            case 'this_year':
+                return array(
+                    'start' => date('Y-01-01'),
+                    'end' => date('Y-12-31')
+                );
+            default:
+                return array(
+                    'start' => date('Y-m-01'),
+                    'end' => date('Y-m-t')
+                );
+        }
+    }
+    
+    private function calculate_budget_health_score($budget_id) {
+        $budget_info = $this->database->get_budget($budget_id);
+        $spent = $this->database->get_total_spent($budget_id);
+        $days_in_month = date('t');
+        $current_day = date('j');
+        
+        $expected_spent = ($budget_info['monthly_budget'] / $days_in_month) * $current_day;
+        $spending_ratio = $spent / $expected_spent;
+        
+        if ($spending_ratio <= 0.8) {
+            return 90 + (10 * (0.8 - $spending_ratio));
+        } elseif ($spending_ratio <= 1.0) {
+            return 70 + (20 * (1.0 - $spending_ratio));
+        } elseif ($spending_ratio <= 1.2) {
+            return 50 + (20 * (1.2 - $spending_ratio));
+        } else {
+            return max(0, 50 - (50 * ($spending_ratio - 1.2)));
+        }
+    }
+    
+    private function identify_risk_factors($budget_id) {
+        $risks = array();
+        $budget_info = $this->database->get_budget($budget_id);
+        $spent = $this->database->get_total_spent($budget_id);
+        
+        if ($spent > $budget_info['monthly_budget'] * 0.8) {
+            $risks[] = __('הוצאות גבוהות - נוצלו מעל 80% מהתקציב', 'budgex');
+        }
+        
+        $recent_spending = $this->database->get_recent_spending_trend($budget_id, 7);
+        if ($recent_spending > $budget_info['monthly_budget'] * 0.1) {
+            $risks[] = __('מגמת הוצאות עולה בשבוע האחרון', 'budgex');
+        }
+        
+        return $risks;
+    }
+    
+    private function generate_budget_recommendations($budget_id) {
+        $recommendations = array();
+        $top_categories = $this->database->get_top_spending_categories($budget_id, 3);
+        
+        foreach ($top_categories as $category) {
+            if ($category['percentage'] > 30) {
+                $recommendations[] = sprintf(
+                    __('שקול להפחית הוצאות בקטגוריה "%s" - מהווה %d%% מההוצאות', 'budgex'),
+                    $category['category'],
+                    $category['percentage']
+                );
+            }
+        }
+        
+        return $recommendations;
+    }
+    
+    private function get_budget_alerts($budget_id) {
+        $alerts = array();
+        $budget_info = $this->database->get_budget($budget_id);
+        $spent = $this->database->get_total_spent($budget_id);
+        
+        if ($spent > $budget_info['monthly_budget']) {
+            $alerts[] = array(
+                'type' => 'error',
+                'message' => __('חריגה מהתקציב החודשי!', 'budgex')
+            );
+        } elseif ($spent > $budget_info['monthly_budget'] * 0.9) {
+            $alerts[] = array(
+                'type' => 'warning',
+                'message' => __('התקרבות לסיום התקציב החודשי', 'budgex')
+            );
+        }
+        
+        return $alerts;
+    }
+
     /**
      * Log errors for debugging in production
      */
     private function log_error($message, $context = array()) {
         if (defined('WP_DEBUG') && WP_DEBUG) {
             error_log('Budgex Plugin Error: ' . $message . ' Context: ' . print_r($context, true));
+        }
+    }
+
+    /**
+     * AJAX handler for exporting selected outcomes
+     */
+    public function ajax_export_selected_outcomes() {
+        check_ajax_referer('budgex_public_nonce', 'nonce');
+        
+        $budget_id = intval($_POST['budget_id']);
+        $outcome_ids = array_map('intval', $_POST['outcome_ids']);
+        $export_format = sanitize_text_field($_POST['export_format'] ?? 'csv');
+        $user_id = get_current_user_id();
+
+        if (!$this->permissions->can_view_budget($budget_id, $user_id)) {
+            wp_send_json_error(array('message' => __('אין הרשאה לצפות בתקציב זה', 'budgex')));
+        }
+
+        if (empty($outcome_ids)) {
+            wp_send_json_error(array('message' => __('לא נבחרו פריטים לייצוא', 'budgex')));
+        }
+
+        try {
+            $budget = $this->database->get_budget($budget_id);
+            $outcomes = $this->database->get_outcomes_by_ids($outcome_ids);
+            
+            $filename = 'budgex_selected_outcomes_' . date('Y-m-d_H-i-s');
+            $upload_dir = wp_upload_dir();
+            $file_path = $upload_dir['path'] . '/' . $filename;
+            
+            if ($export_format === 'csv') {
+                $file_path .= '.csv';
+                $output = fopen($file_path, 'w');
+                
+                // Add BOM for Hebrew support
+                fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
+                
+                // CSV headers
+                fputcsv($output, array(
+                    __('תאריך', 'budgex'),
+                    __('תיאור', 'budgex'),
+                    __('קטגוריה', 'budgex'),
+                    __('סכום', 'budgex'),
+                    __('מטבע', 'budgex')
+                ));
+                
+                foreach ($outcomes as $outcome) {
+                    fputcsv($output, array(
+                        $outcome->date,
+                        $outcome->description,
+                        $outcome->category ?: '',
+                        $outcome->amount,
+                        $budget->currency
+                    ));
+                }
+                
+                fclose($output);
+            } else {
+                wp_send_json_error(array('message' => __('פורמט ייצוא לא נתמך', 'budgex')));
+            }
+            
+            $file_url = $upload_dir['url'] . '/' . basename($file_path);
+            
+            wp_send_json_success(array(
+                'file_url' => $file_url,
+                'filename' => basename($file_path),
+                'message' => __('הקובץ נוצר בהצלחה', 'budgex')
+            ));
+            
+        } catch (Exception $e) {
+            $this->log_error('Failed to export selected outcomes: ' . $e->getMessage(), array(
+                'budget_id' => $budget_id,
+                'outcome_ids' => $outcome_ids
+            ));
+            wp_send_json_error(array('message' => __('שגיאה בייצוא הקובץ', 'budgex')));
+        }
+    }
+
+    /**
+     * AJAX handler for updating category of selected outcomes
+     */
+    public function ajax_update_outcomes_category() {
+        check_ajax_referer('budgex_public_nonce', 'nonce');
+        
+        $budget_id = intval($_POST['budget_id']);
+        $outcome_ids = array_map('intval', $_POST['outcome_ids']);
+        $category = sanitize_text_field($_POST['category']);
+        $user_id = get_current_user_id();
+
+        if (!$this->permissions->can_edit_budget($budget_id, $user_id)) {
+            wp_send_json_error(array('message' => __('אין הרשאה לערוך תקציב זה', 'budgex')));
+        }
+
+        if (empty($outcome_ids)) {
+            wp_send_json_error(array('message' => __('לא נבחרו פריטים לעדכון', 'budgex')));
+        }
+
+        if (empty($category)) {
+            wp_send_json_error(array('message' => __('נא להכניס שם קטגוריה', 'budgex')));
+        }
+
+        try {
+            $updated_count = 0;
+            foreach ($outcome_ids as $outcome_id) {
+                if ($this->database->update_outcome_category($outcome_id, $category)) {
+                    $updated_count++;
+                }
+            }
+            
+            wp_send_json_success(array(
+                'updated_count' => $updated_count,
+                'message' => sprintf(__('עודכנו %d פריטים לקטגוריה "%s"', 'budgex'), $updated_count, $category)
+            ));
+            
+        } catch (Exception $e) {
+            $this->log_error('Failed to update outcomes category: ' . $e->getMessage(), array(
+                'budget_id' => $budget_id,
+                'outcome_ids' => $outcome_ids,
+                'category' => $category
+            ));
+            wp_send_json_error(array('message' => __('שגיאה בעדכון הקטגוריה', 'budgex')));
+        }
+    }
+
+    /**
+     * Force enqueue enhanced assets when needed
+     */
+    private function force_enqueue_enhanced_assets() {
+        // Enqueue enhanced CSS if not already done
+        if (!wp_style_is('budgex-enhanced-budget', 'enqueued')) {
+            wp_enqueue_style('budgex-enhanced-budget', BUDGEX_URL . 'public/css/budgex-enhanced-budget.css', array('budgex-public'), BUDGEX_VERSION);
+        }
+        
+        // Enqueue Chart.js and enhanced JS if not already done
+        if (!wp_script_is('chart-js', 'enqueued')) {
+            wp_enqueue_script('chart-js', 'https://cdn.jsdelivr.net/npm/chart.js', array(), '3.9.1', true);
+        }
+        
+        if (!wp_script_is('budgex-enhanced-budget', 'enqueued')) {
+            wp_enqueue_script('budgex-enhanced-budget', BUDGEX_URL . 'public/js/budgex-enhanced-budget.js', 
+                ['jquery', 'budgex-public', 'chart-js'], BUDGEX_VERSION, true);
         }
     }
 }
