@@ -159,7 +159,7 @@ class Budgex_Database {
     }
 
     public function add_budget($user_id, $budget_name, $monthly_budget, $currency, $start_date) {
-        return $this->wpdb->insert(
+        $result = $this->wpdb->insert(
             $this->budgets_table,
             array(
                 'user_id' => $user_id,
@@ -170,6 +170,12 @@ class Budgex_Database {
             ),
             array('%d', '%s', '%f', '%s', '%s')
         );
+        
+        if ($result !== false) {
+            return $this->wpdb->insert_id;
+        }
+        
+        return false;
     }
 
     public function get_user_budgets($user_id) {
@@ -177,8 +183,7 @@ class Budgex_Database {
             $this->wpdb->prepare(
                 "SELECT * FROM {$this->budgets_table} WHERE user_id = %d ORDER BY created_at DESC",
                 $user_id
-            ),
-            ARRAY_A
+            )
         );
 
         $shared_budgets = $this->wpdb->get_results(
@@ -187,8 +192,7 @@ class Budgex_Database {
                  INNER JOIN {$this->budget_shares_table} s ON b.id = s.budget_id 
                  WHERE s.user_id = %d ORDER BY b.created_at DESC",
                 $user_id
-            ),
-            ARRAY_A
+            )
         );
 
         return array_merge($owned_budgets, $shared_budgets);
@@ -204,7 +208,7 @@ class Budgex_Database {
             $params[] = $user_id;
         }
 
-        return $this->wpdb->get_row($this->wpdb->prepare($sql, $params), ARRAY_A);
+        return $this->wpdb->get_row($this->wpdb->prepare($sql, $params));
     }
 
     public function add_outcome($budget_id, $amount, $description, $outcome_name, $outcome_date = null) {
@@ -614,7 +618,7 @@ class Budgex_Database {
         );
 
         // Return adjusted amount if exists, otherwise return original budget
-        return $adjustment ? floatval($adjustment['new_monthly_amount']) : floatval($budget['monthly_budget']);
+        return $adjustment ? floatval($adjustment['new_monthly_amount']) : floatval($budget->monthly_budget);
     }
 
     /**
@@ -910,7 +914,7 @@ class Budgex_Database {
         
         // Calculate additional budget until target date
         $budget = $this->get_budget($budget_id);
-        $start_date = new DateTime($budget['start_date']);
+        $start_date = new DateTime($budget->start_date);
         $current_date = new DateTime();
         $target_date_obj = new DateTime($target_date);
         
@@ -944,9 +948,16 @@ class Budgex_Database {
 
         // Calculate total budget with adjustments
         $calculator = new Budgex_Budget_Calculator();
-        $calculation = $calculator->calculate_total_budget_with_adjustments($budget);
+        $calculation = $calculator->calculate_total_budget_with_adjustments(
+            $budget_id, 
+            $budget->start_date, 
+            $budget->additional_budget
+        );
         
-        return $calculation['remaining'];
+        // Get total spent outcomes
+        $total_spent = $this->get_total_outcomes($budget_id);
+        
+        return $calculation['total_budget'] - $total_spent;
     }
 
     /**

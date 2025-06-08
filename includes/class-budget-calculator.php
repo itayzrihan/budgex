@@ -99,11 +99,10 @@ class Budgex_Budget_Calculator {
             );
         }
         
-        $total_budget_data = self::calculate_total_budget(
-            $budget['start_date'], 
-            $budget['monthly_budget'], 
-            $budget['additional_budget'],
-            $budget_id
+        $total_budget_data = self::calculate_total_budget_with_adjustments(
+            $budget_id, 
+            $budget->start_date, 
+            $budget->additional_budget
         );
         
         $total_outcomes = $database->get_total_outcomes($budget_id);
@@ -126,7 +125,7 @@ class Budgex_Budget_Calculator {
             return array();
         }
         
-        $start_date = new DateTime($budget['start_date']);
+        $start_date = new DateTime($budget->start_date);
         $current_date = new DateTime();
         $breakdown = array();
         

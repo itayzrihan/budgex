@@ -78,8 +78,8 @@ class Budgex_Public {
         wp_localize_script('budgex-public', 'budgex_ajax', array(
             'ajax_url' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('budgex_public_nonce'),
-            'dashboard_url' => home_url('/budgex-dashboard/'),
-            'budget_url' => home_url('/budgex-budget/'),
+            'dashboard_url' => home_url('/budgex/'),
+            'budget_url' => home_url('/budgex/budget/'),
             'strings' => array(
                 'loading' => __('טוען...', 'budgex'),
                 'error' => __('שגיאה', 'budgex'),
@@ -354,8 +354,8 @@ class Budgex_Public {
         $active_budgets = 0;
         
         foreach ($budgets as $budget) {
-            $total_budget_amount += $budget['budget_amount'];
-            $calculation = Budgex_Budget_Calculator::calculate_remaining_budget($budget['id']);
+            $total_budget_amount += $budget->monthly_budget;
+            $calculation = Budgex_Budget_Calculator::calculate_remaining_budget($budget->id);
             $total_spent += $calculation['total_spent'];
             
             if ($calculation['remaining'] > 0) {
@@ -380,19 +380,19 @@ class Budgex_Public {
         
         $formatted_budgets = array();
         foreach ($budgets as $budget) {
-            $calculation = Budgex_Budget_Calculator::calculate_remaining_budget($budget['id']);
-            $user_role = $this->permissions->get_user_role_on_budget($budget['id'], $user_id);
+            $calculation = Budgex_Budget_Calculator::calculate_remaining_budget($budget->id);
+            $user_role = $this->permissions->get_user_role_on_budget($budget->id, $user_id);
             
             $formatted_budgets[] = array(
-                'id' => $budget['id'],
-                'name' => $budget['budget_name'],
-                'amount' => $budget['budget_amount'],
+                'id' => $budget->id,
+                'name' => $budget->budget_name,
+                'amount' => $budget->monthly_budget,
                 'remaining' => $calculation['remaining'],
                 'spent' => $calculation['total_spent'],
                 'percentage_used' => $calculation['percentage_used'],
                 'role' => $user_role,
-                'start_date' => $budget['start_date'],
-                'end_date' => $budget['end_date']
+                'start_date' => $budget->start_date,
+                'end_date' => isset($budget->end_date) ? $budget->end_date : null
             );
         }
         

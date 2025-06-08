@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Budgex Navigation Test</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; direction: rtl; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .button { padding: 10px 15px; margin: 5px; border: none; border-radius: 3px; cursor: pointer; }
+        .primary { background: #007cba; color: white; }
+        .secondary { background: #666; color: white; }
+        pre { background: #f5f5f5; padding: 10px; border-radius: 3px; overflow-x: auto; }
+        .error { color: red; }
+        .success { color: green; }
+        .info { color: blue; }
+    </style>
+</head>
+<body>
+    <h1>Budgex Navigation Debug Test</h1>
+    
+    <div class="test-section">
+        <h2>Test 1: Check budgex_ajax Object</h2>
+        <p>This should show the JavaScript configuration that WordPress provides:</p>
+        <pre id="budgex-config">Loading...</pre>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test 2: Simulate Button Click</h2>
+        <p>This simulates clicking the "ניהול מתקדם" button:</p>
+        <button class="button secondary manage-budget-btn" data-budget-id="123">
+            ניהול מתקדם (Test Budget #123)
+        </button>
+        <p id="click-result"></p>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test 3: Manual URL Construction</h2>
+        <p>Test URL construction manually:</p>
+        <input type="number" id="budget-id-input" placeholder="Enter Budget ID" value="123">
+        <button class="button primary" onclick="testUrlConstruction()">Test URL</button>
+        <p id="url-result"></p>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test 4: Check Current Page</h2>
+        <p>Current page information:</p>
+        <pre id="page-info">Loading...</pre>
+    </div>
+    
+    <div class="test-section">
+        <h2>Console Output</h2>
+        <p>Check browser console (F12) for detailed error messages.</p>
+        <p>Any errors will also appear here:</p>
+        <div id="console-output"></div>
+    </div>
+
+    <script>
+        // Mock budgex_ajax if it doesn't exist (for testing outside WordPress)
+        if (typeof budgex_ajax === 'undefined') {
+            window.budgex_ajax = {
+                ajax_url: 'https://mytx.one/wp-admin/admin-ajax.php',
+                budget_url: 'https://mytx.one/budgex/budget/',
+                dashboard_url: 'https://mytx.one/budgex/',
+                nonce: 'test-nonce'
+            };
+        }
+        
+        function logToConsole(message, type = 'info') {
+            console.log(message);
+            const output = document.getElementById('console-output');
+            const div = document.createElement('div');
+            div.className = type;
+            div.textContent = new Date().toLocaleTimeString() + ': ' + JSON.stringify(message);
+            output.appendChild(div);
+        }
+        
+        function testUrlConstruction() {
+            const budgetId = document.getElementById('budget-id-input').value;
+            const result = document.getElementById('url-result');
+            
+            try {
+                if (!budgetId) {
+                    throw new Error('Budget ID is required');
+                }
+                
+                if (!budgex_ajax || !budgex_ajax.budget_url) {
+                    throw new Error('budgex_ajax configuration is missing');
+                }
+                
+                const targetUrl = budgex_ajax.budget_url + budgetId + '/#advanced-management-panel';
+                result.innerHTML = `<span class="success">✅ URL: <a href="${targetUrl}" target="_blank">${targetUrl}</a></span>`;
+                logToConsole('URL constructed successfully: ' + targetUrl, 'success');
+                
+            } catch (error) {
+                result.innerHTML = `<span class="error">❌ Error: ${error.message}</span>`;
+                logToConsole('URL construction failed: ' + error.message, 'error');
+            }
+        }
+        
+        $(document).ready(function() {
+            // Test 1: Show budgex_ajax configuration
+            document.getElementById('budgex-config').textContent = JSON.stringify(budgex_ajax, null, 2);
+            
+            // Test 4: Show page info
+            const pageInfo = {
+                url: window.location.href,
+                pathname: window.location.pathname,
+                search: window.location.search,
+                hash: window.location.hash,
+                userAgent: navigator.userAgent.substring(0, 100) + '...'
+            };
+            document.getElementById('page-info').textContent = JSON.stringify(pageInfo, null, 2);
+            
+            // Test 2: Handle button click (same as real implementation)
+            $('.manage-budget-btn').on('click', function() {
+                const budgetId = $(this).data('budget-id');
+                const resultDiv = document.getElementById('click-result');
+                
+                try {
+                    logToConsole('Button clicked with budget ID: ' + budgetId);
+                    
+                    // Debug logging
+                    const debugInfo = {
+                        budgetId: budgetId,
+                        budget_url: budgex_ajax.budget_url,
+                        final_url: budgex_ajax.budget_url + budgetId + '/#advanced-management-panel'
+                    };
+                    logToConsole('Debug info: ' + JSON.stringify(debugInfo));
+                    
+                    // Validate we have the required data
+                    if (!budgetId) {
+                        throw new Error('Budget ID is missing from button data');
+                    }
+                    
+                    if (!budgex_ajax || !budgex_ajax.budget_url) {
+                        throw new Error('Budgex AJAX configuration is missing');
+                    }
+                    
+                    const targetUrl = budgex_ajax.budget_url + budgetId + '/#advanced-management-panel';
+                    logToConsole('Target URL: ' + targetUrl, 'success');
+                    
+                    resultDiv.innerHTML = `<span class="success">✅ Would navigate to: <a href="${targetUrl}" target="_blank">${targetUrl}</a></span>`;
+                    
+                    // For testing, don't actually navigate
+                    // window.location.href = targetUrl;
+                    
+                } catch (error) {
+                    logToConsole('Button click failed: ' + error.message, 'error');
+                    resultDiv.innerHTML = `<span class="error">❌ Error: ${error.message}</span>`;
+                }
+            });
+            
+            // Test URL construction on load
+            testUrlConstruction();
+        });
+    </script>
+</body>
+</html>

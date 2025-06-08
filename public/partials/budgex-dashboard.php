@@ -169,7 +169,7 @@ foreach (array_merge($budgets, $shared_budgets) as $budget) {
                             <?php endif; ?>
                             
                             <?php if ($user_role === 'owner' || $user_role === 'admin'): ?>
-                                <button type="button" class="button secondary manage-budget-btn" data-budget-id="<?php echo $budget->id; ?>">
+                                <button type="button" class="button secondary manage-budget-btn" data-budget-id="<?php echo esc_attr($budget->id); ?>" data-budget-name="<?php echo esc_attr($budget->budget_name); ?>">
                                     <?php _e('ניהול מתקדם', 'budgex'); ?>
                                 </button>
                             <?php endif; ?>
@@ -313,8 +313,44 @@ jQuery(document).ready(function($) {
     
     // Handle manage budget button
     $('.manage-budget-btn').on('click', function() {
-        var budgetId = $(this).data('budget-id');
-        window.location.href = budgex_ajax.budget_url + '?id=' + budgetId + '#advanced-management-panel';
+        var $button = $(this);
+        var budgetId = $button.data('budget-id');
+        var budgetName = $button.data('budget-name');
+        
+        // Enhanced debug logging
+        console.log('=== Manage Budget Button Clicked ===');
+        console.log('Button element:', $button[0]);
+        console.log('Button HTML:', $button[0].outerHTML);
+        console.log('All data attributes:', $button.data());
+        console.log('Budget ID from data():', budgetId);
+        console.log('Budget ID from attr():', $button.attr('data-budget-id'));
+        console.log('Budget Name:', budgetName);
+        console.log('budgex_ajax object:', budgex_ajax);
+        
+        // Validate we have the required data
+        if (!budgetId) {
+            console.error('❌ Budget ID is missing!');
+            console.log('Available data attributes:', Object.keys($button.data()));
+            console.log('Button raw attributes:');
+            Array.from($button[0].attributes).forEach(attr => {
+                console.log(`  ${attr.name}: ${attr.value}`);
+            });
+            alert('שגיאה: מזהה התקציב חסר');
+            return;
+        }
+        
+        if (!budgex_ajax || !budgex_ajax.budget_url) {
+            console.error('❌ Budgex AJAX configuration is missing');
+            console.log('budgex_ajax:', budgex_ajax);
+            alert('שגיאה: הגדרות JavaScript חסרות');
+            return;
+        }
+        
+        var targetUrl = budgex_ajax.budget_url + budgetId + '/#advanced-management-panel';
+        console.log('✅ Target URL constructed:', targetUrl);
+        console.log('Navigating now...');
+        
+        window.location.href = targetUrl;
     });
     
     // Handle view all budgets button

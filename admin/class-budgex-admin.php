@@ -47,6 +47,18 @@ class Budgex_Admin {
             'budgex-view',
             array( $this, 'display_budget_view_page' )
         );
+
+        // Add navigation fix tool for administrators
+        if (current_user_can('manage_options')) {
+            add_submenu_page(
+                'budgex',
+                __( 'Fix Navigation', 'budgex' ),
+                __( 'Fix Navigation', 'budgex' ),
+                'manage_options',
+                'budgex-fix-navigation',
+                array( $this, 'display_fix_navigation_page' )
+            );
+        }
     }
 
     public function enqueue_admin_scripts($hook) {
@@ -227,6 +239,10 @@ class Budgex_Admin {
         if ( strpos( $screen->id, 'budgex' ) !== false ) {
             settings_errors( 'budgex' );
         }
+    }
+
+    public function display_fix_navigation_page() {
+        include_once BUDGEX_DIR . 'admin/fix-navigation.php';
     }
 }
 ?>

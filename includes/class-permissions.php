@@ -173,7 +173,7 @@ class Budgex_Permissions {
             return false;
         }
         
-        return $budget['user_id'] == $user_id;
+        return $budget->user_id == $user_id;
     }
 }
 ?>

@@ -46,6 +46,9 @@
         // Budget navigation
         $(document).on('click', '.budget-card a, .view-budget', handleBudgetNavigation);
         
+        // Advanced management panel toggle
+        $(document).on('click', '#toggle-management-panel', handleAdvancedManagementToggle);
+        
         // Invitation acceptance
         $(document).on('click', '.accept-invitation', handleInvitationAcceptance);
         
@@ -106,6 +109,9 @@
             loadBudgetDetails(currentBudgetId);
             loadOutcomes(currentBudgetId);
             loadMonthlyBreakdown(currentBudgetId);
+            
+            // Handle anchor link navigation for advanced management panel
+            handleAdvancedManagementAnchor();
         }
     }
 
@@ -318,6 +324,61 @@
                 button.prop('disabled', false);
             }
         });
+    }
+
+    /**
+     * Handle advanced management panel toggle
+     */
+    function handleAdvancedManagementToggle(e) {
+        e.preventDefault();
+        
+        const panel = $('#advanced-management-panel');
+        const button = $(this);
+        
+        if (panel.is(':visible')) {
+            // Hide panel with animation
+            panel.slideUp(300, function() {
+                button.find('span').removeClass('dashicons-admin-settings').addClass('dashicons-admin-settings');
+                button.removeClass('active');
+            });
+        } else {
+            // Show panel with animation
+            panel.slideDown(300, function() {
+                button.find('span').removeClass('dashicons-admin-settings').addClass('dashicons-admin-settings');
+                button.addClass('active');
+                
+                // Scroll to panel if needed
+                $('html, body').animate({
+                    scrollTop: panel.offset().top - 100
+                }, 500);
+            });
+        }
+    }
+
+    /**
+     * Handle anchor link navigation for advanced management panel
+     */
+    function handleAdvancedManagementAnchor() {
+        // Check if URL contains advanced management panel anchor
+        if (window.location.hash === '#advanced-management-panel') {
+            // Wait for page to load completely
+            setTimeout(function() {
+                const panel = $('#advanced-management-panel');
+                const button = $('#toggle-management-panel');
+                
+                if (panel.length && button.length) {
+                    // Show the panel
+                    panel.slideDown(300, function() {
+                        button.addClass('active');
+                        
+                        // Scroll to panel
+                        $('html, body').animate({
+                            scrollTop: panel.offset().top - 100
+                        }, 500);
+                    });
+                }
+            }, 500);
+        }
     }
 
     /**

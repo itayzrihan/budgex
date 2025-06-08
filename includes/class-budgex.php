@@ -84,11 +84,33 @@ class Budgex {
         $budgex_page = get_query_var('budgex_page');
         $budget_id = get_query_var('budget_id');
         
+        // Debug logging (remove in production)
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log("Budgex Frontend Handler - Page: $budgex_page, Budget ID: $budget_id, User logged in: " . (is_user_logged_in() ? 'Yes' : 'No'));
+        }
+        
         if ($budgex_page) {
             // Ensure user is logged in
             if (!is_user_logged_in()) {
+                // Log the redirect for debugging
+                if (defined('WP_DEBUG') && WP_DEBUG) {
+                    error_log("Budgex: Redirecting to login - Current URL: " . $_SERVER['REQUEST_URI']);
+                }
                 wp_redirect(wp_login_url(home_url('/budgex/')));
                 exit;
+            }
+            
+            // If this is a budget page, check user permissions
+            if ($budgex_page === 'budget' && $budget_id) {
+                $user_id = get_current_user_id();
+                if (!$this->permissions->can_view_budget($budget_id, $user_id)) {
+                    // Log permission failure
+                    if (defined('WP_DEBUG') && WP_DEBUG) {
+                        error_log("Budgex: User $user_id denied access to budget $budget_id");
+                    }
+                    wp_redirect(home_url('/budgex/'));
+                    exit;
+                }
             }
             
             // Load the main budgex page template
